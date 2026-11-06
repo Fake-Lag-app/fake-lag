@@ -8,7 +8,7 @@
 <br clear="left">
 
 ## הורדה
-[קובץ ההתקנה לווינדוס](../../releases/latest) · חינם
+[⬇️ הורדה לווינדוס (FakeLag-Setup.exe)](https://github.com/Fake-Lag-app/fake-lag/releases/latest/download/FakeLag-Setup.exe) · חינם
 
 צריך גם: [OBS Studio](https://obsproject.com) ו-[VB-Cable](https://vb-audio.com/Cable/), שניהם חינם. אשף ההגדרה באפליקציה מלווה אותך.
 

@@ -18,3 +18,4 @@ app/selftest/
 
 # local tooling
 .claude/
+/PLAN-store.md

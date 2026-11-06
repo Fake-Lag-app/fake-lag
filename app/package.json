@@ -33,7 +33,7 @@
       "installerHeaderIcon": "build/icon.ico",
       "shortcutName": "Fake Lag",
       "runAfterFinish": true,
-      "artifactName": "FakeLag-Setup-${version}.exe"
+      "artifactName": "FakeLag-Setup.exe"
     }
   }
 }
