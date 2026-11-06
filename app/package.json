@@ -1,0 +1,39 @@
+{
+  "name": "fake-lag",
+  "productName": "Fake Lag",
+  "version": "0.1.0",
+  "description": "Make your Zoom / Google Meet camera and mic look like your internet is dying.",
+  "author": "Fake Lag",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "selftest": "electron . --selftest",
+    "dist": "node build/dist.js"
+  },
+  "dependencies": {
+    "qrcode": "1.5.4"
+  },
+  "devDependencies": {
+    "electron": "41.10.7",
+    "electron-builder": "26.18.0",
+    "rcedit": "5.0.2"
+  },
+  "build": {
+    "appId": "app.fakelag",
+    "productName": "Fake Lag",
+    "copyright": "Fake Lag",
+    "files": ["main.js", "preload.js", "renderer/**", "package.json"],
+    "directories": { "buildResources": "build", "output": "dist" },
+    "win": { "target": "nsis", "icon": "build/icon.ico", "signAndEditExecutable": false },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "shortcutName": "Fake Lag",
+      "runAfterFinish": true,
+      "artifactName": "FakeLag-Setup-${version}.exe"
+    }
+  }
+}

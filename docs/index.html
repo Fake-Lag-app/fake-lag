@@ -1,0 +1,193 @@
+﻿<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>לאג מזויף · Fake Lag</title>
+<meta name="description" content="שאלה קשה בזום? האינטרנט שלך פתאום קורס. לאג, טשטוש, קול נקטע ומצלמה שנכבית, בלחיצה אחת. חינם לווינדוס.">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0e0f13;--panel:#16181e;--line:#262a33;--ink:#f1f2f5;--mute:#9aa0ac;--accent:#ff5a5a;--accent2:#ffb547}
+  @media (prefers-color-scheme: light){:root:not([data-theme="dark"]){--bg:#f6f6f4;--panel:#fff;--line:#e3e3df;--ink:#16171b;--mute:#5d626c}}
+  :root[data-theme="light"]{--bg:#f6f6f4;--panel:#fff;--line:#e3e3df;--ink:#16171b;--mute:#5d626c}
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 Rubik,system-ui,sans-serif;overflow-x:hidden}
+  a{color:inherit}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 16px}
+  header{display:flex;justify-content:space-between;align-items:center;padding:18px 0}
+  .logo{font-weight:800;letter-spacing:.2px;display:flex;align-items:center;gap:8px}
+  .logo img{width:34px;height:34px;border-radius:8px;display:block}
+  .lang{background:none;border:1px solid var(--line);color:var(--mute);border-radius:999px;padding:4px 12px;font:inherit;font-size:14px;cursor:pointer}
+
+  .hero{display:grid;grid-template-columns:1.05fr 1fr;gap:40px;align-items:center;padding:36px 0 56px}
+  h1{font-size:clamp(34px,5.4vw,58px);line-height:1.08;margin:0 0 16px;font-weight:800;letter-spacing:-.5px}
+  h1 em{font-style:normal;color:var(--accent);display:inline-block;animation:jitter 3.2s infinite}
+  @keyframes jitter{0%,82%,100%{transform:none;filter:none}84%{transform:translate(2px,-1px);filter:blur(1px)}87%{transform:translate(-2px,1px)}90%{transform:none;filter:blur(2px)}}
+  .lead{color:var(--mute);font-size:19px;margin:0 0 28px;max-width:30em}
+  .cta{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+  .btn{display:inline-flex;align-items:center;gap:10px;background:var(--accent);color:#fff;text-decoration:none;font-weight:700;
+       padding:14px 24px;border-radius:12px;font-size:17px;box-shadow:0 8px 28px #ff5a5a40;transition:transform .15s}
+  .btn:hover{transform:translateY(-2px)}
+  .btn svg{width:20px;height:20px}
+  .small{color:var(--mute);font-size:14px}
+
+  .tile{position:relative;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:#000;aspect-ratio:16/9}
+  .tile video{width:100%;height:100%;display:block;object-fit:cover}
+  .tile .badge{position:absolute;top:12px;inset-inline-start:12px;background:#000b;color:#fff;font-size:13px;padding:4px 10px;border-radius:999px}
+
+  section{padding:56px 0;border-top:1px solid var(--line)}
+  h2{font-size:clamp(26px,3.4vw,36px);margin:0 0 28px;font-weight:800}
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;counter-reset:s}
+  .step{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px}
+  .step::before{counter-increment:s;content:counter(s);display:grid;place-items:center;width:34px;height:34px;border-radius:50%;
+                background:#ff5a5a22;color:var(--accent);font-weight:800;margin-bottom:12px}
+  .step h3{margin:0 0 6px;font-size:19px}
+  .step p{margin:0;color:var(--mute);font-size:15.5px}
+
+  .modes{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .mode{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .mode b{display:block;font-size:17px}
+  .mode span{color:var(--mute);font-size:14.5px}
+  .mode kbd{display:inline-block;margin-top:8px;font:12px Consolas,monospace;border:1px solid var(--line);border-radius:5px;padding:1px 6px;color:var(--mute);direction:ltr}
+
+  .need{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .need div{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .need b{display:block;margin-bottom:4px}
+  .need p{margin:0;color:var(--mute);font-size:15px}
+
+  details{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:10px}
+  summary{cursor:pointer;font-weight:600}
+  details p{color:var(--mute);margin:10px 0 0;font-size:15.5px}
+  footer{padding:36px 0 48px;color:var(--mute);font-size:14px;border-top:1px solid var(--line)}
+
+  @media (max-width:820px){
+    .hero{grid-template-columns:1fr;gap:28px;padding-top:12px}
+    .steps,.need{grid-template-columns:1fr}
+    .modes{grid-template-columns:1fr 1fr}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo"><img src="logo.png" alt=""><span data-t="name"></span></div>
+    <button class="lang" id="lang">English</button>
+  </header>
+
+  <div class="hero">
+    <div>
+      <h1><span data-t="h1a"></span> <em data-t="h1b"></em></h1>
+      <p class="lead" data-t="lead"></p>
+      <div class="cta">
+        <a class="btn" id="dl" href="#">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 21h16"/></svg>
+          <span data-t="download"></span>
+        </a>
+        <span class="small" data-t="dlnote"></span>
+      </div>
+    </div>
+    <div class="tile">
+      <video src="demo.mp4" poster="poster.jpg" autoplay muted loop playsinline controls></video>
+      <span class="badge" data-t="sound"></span>
+    </div>
+  </div>
+
+  <section>
+    <h2 data-t="howT"></h2>
+    <div class="steps">
+      <div class="step"><h3 data-t="s1t"></h3><p data-t="s1"></p></div>
+      <div class="step"><h3 data-t="s2t"></h3><p data-t="s2"></p></div>
+      <div class="step"><h3 data-t="s3t"></h3><p data-t="s3"></p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2 data-t="modesT"></h2>
+    <div class="modes" id="modes"></div>
+  </section>
+
+  <section>
+    <h2 data-t="needT"></h2>
+    <div class="need">
+      <div><b>Windows 10 / 11</b><p data-t="n1"></p></div>
+      <div><b>OBS Studio</b><p data-t="n2"></p></div>
+      <div><b>VB-Cable</b><p data-t="n3"></p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2 data-t="faqT"></h2>
+    <details><summary data-t="q1"></summary><p data-t="a1"></p></details>
+    <details><summary data-t="q2"></summary><p data-t="a2"></p></details>
+    <details><summary data-t="q3"></summary><p data-t="a3"></p></details>
+    <details><summary data-t="q4"></summary><p data-t="a4"></p></details>
+  </section>
+
+  <footer data-t="foot"></footer>
+</div>
+
+<script>
+// Set this to the GitHub Releases page once the repo exists.
+const DOWNLOAD_URL = 'https://github.com/Fake-Lag-app/fake-lag/releases/latest';
+
+const D = {
+  he: { dir:'rtl', name:'לאג מזויף', other:'English',
+    h1a:'שאלה קשה בזום?', h1b:'האינטרנט שלך נפל.',
+    lead:'לחיצה אחת, והמצלמה שלך מתחילה לקרטע, מיטשטשת, הקול נקטע, ובסוף אתה "נופל" מהשיחה. עובד בזום ובגוגל מיט.',
+    download:'הורדה לווינדוס', dlnote:'חינם · 78MB', sound:'עם קול 🔊',
+    howT:'איך זה עובד',
+    s1t:'מתקינים', s1:'מתקינים את האפליקציה, ואשף קצר מחבר אותה ל-OBS ול-VB-Cable. פעם אחת וזהו.',
+    s2t:'בוחרים בזום', s2:'בזום או במיט בוחרים מצלמה "OBS Virtual Camera" ומיקרופון "CABLE Output". מבחוץ הכל נראה רגיל.',
+    s3t:'לוחצים', s3:'Ctrl+Alt+Shift+0 במקלדת, או כפתור בטלפון. תוך 10 שניות החיבור "מתדרדר" ונופל. Ctrl+Alt+Shift+9 מחזיר אותך בהדרגה.',
+    modesT:'מה אפשר לעשות',
+    m:[['לאג','התמונה מקרטעת','2'],['איכות גרועה','מטושטש כמו וידאו דחוס','3'],['קוביות','ריבועים נמרחים','4'],['קפיאה','תמונה וקול נתקעים','5'],
+       ['מצלמה נכבית','מסך שחור עם השם שלך','6'],['ניתוק אוטומטי','מתדרדר ונופל ב-10 שניות','0'],['התחברתי מחדש','חוזר לאט, כמו באמת','9'],['שלט בטלפון','סורקים QR ושולטים מהכיס','QR']],
+    needT:'מה צריך',
+    n1:'האפליקציה רצה על ווינדוס בלבד בינתיים.', n2:'חינם. הופך את חלון האפליקציה למצלמה שזום רואה.', n3:'חינם. מיקרופון וירטואלי שדרכו הקול נקטע. בלעדיו רק התמונה משתבשת.',
+    faqT:'שאלות',
+    q1:'ווינדוס אומר "Windows protected your PC"', a1:'זה קורה עם כל תוכנה חדשה בלי חתימה דיגיטלית בתשלום. לוחצים "More info" ואז "Run anyway".',
+    q2:'זה עובד גם במיט / טימס?', a2:'כן. כל תוכנה שאפשר לבחור בה מצלמה ומיקרופון: זום, גוגל מיט, טימס, דיסקורד.',
+    q3:'המורה יראה שזה מזויף?', a3:'מבחוץ זה נראה כמו חיבור גרוע. טיפ: מתחילים ב"לאג" כמה שניות לפני, ורק אז ניתוק. נפילה פתאומית נראית חשודה.',
+    q4:'כתוב "המצלמה תפוסה"', a4:'רק האפליקציה צריכה לגשת למצלמה האמיתית. ב-OBS מוחקים את המקור Video Capture Device, ובזום בוחרים OBS Virtual Camera.',
+    foot:'לאג מזויף · חינם · להשתמש באחריות 😇' },
+  en: { dir:'ltr', name:'Fake Lag', other:'עברית',
+    h1a:'Hard question on Zoom?', h1b:'Your internet just died.',
+    lead:'One click and your camera starts lagging, goes blurry, your voice cuts out, and then you "drop" from the call. Works in Zoom and Google Meet.',
+    download:'Download for Windows', dlnote:'Free · 78MB', sound:'Sound on 🔊',
+    howT:'How it works',
+    s1t:'Install', s1:'Install the app and a short wizard hooks it up to OBS and VB-Cable. Once, and you’re set.',
+    s2t:'Pick it in Zoom', s2:'In Zoom or Meet choose the "OBS Virtual Camera" camera and the "CABLE Output" mic. Everything looks normal.',
+    s3t:'Press', s3:'Ctrl+Alt+Shift+0 on the keyboard, or a button on your phone. Over 10 seconds your connection "dies". Ctrl+Alt+Shift+9 brings you back gradually.',
+    modesT:'What it can do',
+    m:[['Lag','Choppy picture','2'],['Low quality','Blurry, like squeezed video','3'],['Blocks','Smeared squares','4'],['Freeze','Picture and sound stop','5'],
+       ['Camera drop','Black screen with your name','6'],['Auto disconnect','Falls apart in 10 s','0'],['Reconnect','Comes back slowly, like for real','9'],['Phone remote','Scan a QR, control it from your pocket','QR']],
+    needT:'What you need',
+    n1:'Windows only for now.', n2:'Free. Turns the app window into a camera Zoom can see.', n3:'Free. A virtual mic that lets your voice cut out. Without it only the picture glitches.',
+    faqT:'Questions',
+    q1:'Windows says "Windows protected your PC"', a1:'That happens with any new app without a paid code-signing certificate. Click "More info", then "Run anyway".',
+    q2:'Does it work in Meet / Teams?', a2:'Yes. Anything that lets you pick a camera and mic: Zoom, Google Meet, Teams, Discord.',
+    q3:'Will the teacher know?', a3:'From the outside it looks like a bad connection. Tip: start with "Lag" a few seconds before, then disconnect. A sudden drop looks suspicious.',
+    q4:'It says "camera is busy"', a4:'Only the app should touch your real camera. In OBS delete the Video Capture Device source, and in Zoom pick OBS Virtual Camera.',
+    foot:'Fake Lag · free · use responsibly 😇' },
+};
+let lang = (navigator.language || '').startsWith('he') ? 'he' : 'en';
+try { lang = localStorage.getItem('fl-lang') || lang; } catch {}
+function render() {
+  const d = D[lang];
+  document.documentElement.lang = lang; document.documentElement.dir = d.dir;
+  document.querySelectorAll('[data-t]').forEach(el => { el.textContent = d[el.dataset.t]; });
+  document.getElementById('lang').textContent = d.other;
+  document.getElementById('modes').innerHTML = d.m.map(([b, s, k]) =>
+    `<div class="mode"><b>${b}</b><span>${s}</span><br><kbd>${k === 'QR' ? 'QR' : 'Ctrl+Alt+Shift+' + k}</kbd></div>`).join('');
+  document.title = d.name + (lang === 'he' ? ' · Fake Lag' : '');
+}
+document.getElementById('lang').onclick = () => { lang = lang === 'he' ? 'en' : 'he'; try { localStorage.setItem('fl-lang', lang); } catch {} render(); };
+document.getElementById('dl').href = DOWNLOAD_URL;
+render();
+</script>
+</body>
+</html>

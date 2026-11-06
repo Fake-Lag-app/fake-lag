@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; style-src 'self' 'unsafe-inline'; script-src 'self'">
+<title>Fake Lag Camera</title>
+<style>
+  html,body{margin:0;height:100%;background:#000;overflow:hidden;cursor:none}
+  canvas{position:fixed;inset:0;width:100vw;height:100vh;object-fit:cover;display:block;background:#000}
+</style>
+</head>
+<body>
+<canvas id="out" width="1280" height="720"></canvas>
+<video id="v" playsinline muted autoplay hidden></video>
+<script src="cam.js"></script>
+</body>
+</html>

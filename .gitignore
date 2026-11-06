@@ -1,0 +1,20 @@
+# dependencies and build output
+node_modules/
+app/dist/
+*.log
+
+# self-test output: screenshots from the real camera and a settings file with the phone code
+app/selftest/
+
+# demo video work (stock footage, generated audio)
+/demo/
+
+# first draft before the app, kept locally only
+/cam.html
+/control.html
+/serve.js
+/start.bat
+/PLAN.md
+
+# local tooling
+.claude/

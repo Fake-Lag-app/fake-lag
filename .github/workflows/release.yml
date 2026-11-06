@@ -1,0 +1,33 @@
+# Push a tag like v0.1.0 and GitHub builds the Windows installer and publishes it as a release.
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci
+      - run: npm run dist
+      - name: publish release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/FakeLag-Setup-*.exe \
+            --title "Fake Lag ${GITHUB_REF_NAME#v}" \
+            --notes-file ../.github/release-notes.md

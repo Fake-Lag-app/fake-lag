@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob: http://127.0.0.1:5174; style-src 'self' 'unsafe-inline'; script-src 'self'">
+<title>Fake Lag</title>
+<link rel="stylesheet" href="control.css">
+</head>
+<body>
+<header>
+  <h1 data-i18n="app"></h1>
+  <div class="lang"><button data-lang="he">עב</button><button data-lang="en">EN</button></div>
+</header>
+
+<!-- first-run wizard bar -->
+<div id="wiz" hidden>
+  <div class="wiz-step"><span data-i18n="w_step"></span> <b id="wizN"></b> <span data-i18n="w_of"></span> 4</div>
+  <h2 id="wizT"></h2><p id="wizS"></p>
+</div>
+
+<nav id="tabs">
+  <button data-tab="remote" data-i18n="tab_remote"></button>
+  <button data-tab="settings" data-i18n="tab_settings"></button>
+  <button data-tab="help" data-i18n="tab_help"></button>
+</nav>
+
+<main>
+  <!-- remote -->
+  <section data-page="remote">
+    <div class="preview"><img id="preview" alt=""><span data-i18n="preview"></span></div>
+    <div id="status" class="status"></div>
+    <div class="grid" id="modes"></div>
+    <label class="lvl"><span data-i18n="level"></span> <b id="lvlV"></b>
+      <input id="lvl" type="range" min="0" max="1" step="0.05"></label>
+    <button id="showCam" class="ghost" data-i18n="show_cam"></button>
+
+    <div class="card phone">
+      <img id="qr" alt="" width="150" height="150">
+      <div><h3 data-i18n="phone"></h3><p id="phoneHint" data-i18n="phone_wait"></p>
+        <button id="newCode" class="ghost" data-i18n="new_code" hidden></button></div>
+    </div>
+
+    <div class="card">
+      <h3 data-i18n="keys"></h3>
+      <ul class="keys" id="keys"></ul>
+    </div>
+  </section>
+
+  <!-- settings -->
+  <section data-page="settings">
+    <div class="card" id="sec-profile">
+      <h3 data-i18n="s_profile"></h3>
+      <label><span data-i18n="s_name"></span><input id="name" maxlength="40" data-i18n-ph="s_name_ph"></label>
+      <div class="photo">
+        <img id="photoPrev" alt="" hidden>
+        <div>
+          <div class="lbl" data-i18n="s_photo"></div>
+          <label class="btn"><span data-i18n="s_photo_pick"></span><input id="photo" type="file" accept="image/*" hidden></label>
+          <button id="photoClear" class="ghost" data-i18n="s_photo_clear"></button>
+        </div>
+      </div>
+      <label><span data-i18n="s_lang"></span>
+        <select id="langSel"><option value="he">עברית</option><option value="en">English</option></select></label>
+    </div>
+    <div class="card" id="sec-devices">
+      <h3 data-i18n="s_devices"></h3>
+      <label><span data-i18n="s_cam"></span><select id="camSel"></select></label>
+      <label><span data-i18n="s_mic"></span><select id="micSel"></select></label>
+      <label><span data-i18n="s_out"></span><select id="outSel"></select></label>
+      <p id="cable" class="note"></p>
+    </div>
+  </section>
+
+  <!-- help -->
+  <section data-page="help">
+    <div class="card" id="sec-obs"><h3 data-i18n="w_t3"></h3>
+      <div class="url"><code id="obsUrl">http://127.0.0.1:5174/obs</code><button id="copyObs" class="ghost" data-i18n="copy"></button></div>
+      <div data-i18n-html="h_obs"></div></div>
+    <div class="card" id="sec-zoom"><h3 data-i18n="w_t4"></h3><div data-i18n-html="h_zoom"></div></div>
+  </section>
+</main>
+
+<footer id="wizNav" hidden>
+  <button id="wizBack" class="ghost" data-i18n="w_back"></button>
+  <button id="wizNext" class="primary" data-i18n="w_next"></button>
+</footer>
+
+<script src="i18n.js"></script>
+<script src="control.js"></script>
+</body>
+</html>
