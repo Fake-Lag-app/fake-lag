@@ -1,0 +1,11 @@
+{
+  // Pages project: deployed at fake-lag-store.pages.dev (no account name in the address).
+  // Build the output folder with `npm run build:pages` (from server/), deploy with `npm run deploy:pages`.
+  "name": "fake-lag-store",
+  "pages_build_output_dir": "../dist-pages",
+  "compatibility_date": "2026-10-26",
+  "d1_databases": [
+    { "binding": "DB", "database_name": "fake-lag-store", "database_id": "6860d654-9940-4c7e-8a05-9b72cb46a404", "migrations_dir": "../migrations" }
+  ]
+  // secrets (never in this file): wrangler pages secret put ADMIN_KEY --project-name fake-lag-store
+}

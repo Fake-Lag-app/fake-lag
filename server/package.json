@@ -6,7 +6,9 @@
     "assets": "node scripts/copy-shared.mjs",
     "dev": "npm run assets && wrangler d1 migrations apply DB --local && wrangler dev --local --port 8787",
     "test": "node test/run.mjs",
-    "deploy": "npm run assets && wrangler d1 migrations apply DB --remote && wrangler deploy"
+    "deploy": "npm run assets && wrangler d1 migrations apply DB --remote && wrangler deploy",
+    "build:pages": "npm run assets && node scripts/build-pages.mjs",
+    "deploy:pages": "npm run build:pages && cd pages && wrangler d1 migrations apply DB --remote && wrangler pages deploy --project-name fake-lag-store --branch main"
   },
   "devDependencies": {
     "wrangler": "4.152.0"

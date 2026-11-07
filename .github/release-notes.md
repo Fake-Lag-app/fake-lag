@@ -6,6 +6,8 @@
 
 **ווינדוס מזהיר "Windows protected your PC"?** זה קורה עם כל תוכנה חדשה בלי חתימה דיגיטלית בתשלום. לוחצים "More info" ואז "Run anyway".
 
+**חדש ב-0.2.1:** חנות הלאגים באוויר. אפשר לשתף לאגים ואפקטים עם כינוי בלבד ולהוריד של אחרים.
+
 ---
 
 Download **FakeLag-Setup** below. You also need OBS Studio and VB-Cable (both free); the setup wizard walks you through it.

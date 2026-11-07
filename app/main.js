@@ -21,7 +21,7 @@ const DEFAULTS = { lang: 'he', name: '', photo: '', camId: '', micId: '', outId:
   presets: [], slots: { 7: '', 8: '' }, nick: '', token: '' };
 // never settable from a window: the phone code, the admin key, the store address
 const PRIVATE = ['token', 'adminKey', 'storeUrl'];
-const STORE_URL_DEFAULT = '';   // filled in once the store server is online
+const STORE_URL_DEFAULT = 'https://fake-lag-store.pages.dev';
 let S;
 const storeUrl = () => (S.storeUrl || STORE_URL_DEFAULT).replace(/\/$/, '');
 // what windows get: no secrets, just whether this copy is the admin's
@@ -368,15 +368,16 @@ async function selfTest() {
     for (const b of blocks) fs.writeFileSync(path.join(sheet, b.name + '.jpg'), Buffer.from(b.img.split(',')[1], 'base64'));
     log.push({ videoBlocks: blocks.map(({ name, ok, err, ms }) => ({ name, ok, err, ms })) });
     // the store, end to end, through the same IPC the windows use
-    if (saved && storeUrl()) {
+    if (saved && process.env.FL_TEST_STORE) {
       const sub = await storeFetch('/api/submit', { method: 'POST', body: { ...saved, by: 'בודק' } });
       const pend = await storeFetch('/api/admin/pending', { admin: true });
       const inPending = pend.ok && pend.items.some(i => i.id === sub.id);
       const appr = await storeFetch(`/api/admin/${sub.id}/approve`, { method: 'POST', admin: true });
       const list = await storeFetch('/api/items?kind=effect&sort=new');
       const visible = list.ok && cleanItems(list.items).some(i => i.id === sub.id && i.data.name === 'בדיקה');
+      const removed = await storeFetch(`/api/admin/${sub.id}/delete`, { method: 'POST', admin: true });
       const noKey = await (async () => { const k = S.adminKey; S.adminKey = ''; const r = await storeFetch('/api/admin/pending', { admin: true }); S.adminKey = k; return r; })();
-      log.push({ store: { submitted: !!sub.id, inPending, approved: appr.ok, visibleInStore: visible, adminWithoutKey: noKey.error, settingsLeakKey: JSON.stringify(publicSettings()).includes(S.adminKey) } });
+      log.push({ store: { submitted: !!sub.id, inPending, approved: appr.ok, visibleInStore: visible, removed: removed.ok, adminWithoutKey: noKey.error, settingsLeakKey: JSON.stringify(publicSettings()).includes(S.adminKey) } });
       ctl.webContents.send('selftestTab', 'admin'); await wait(1500);
       fs.writeFileSync(path.join(out, 'ctl-admin.png'), (await ctl.webContents.capturePage()).toPNG());
       ctl.webContents.send('selftestTab', 'lags');

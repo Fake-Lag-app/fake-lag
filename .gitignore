@@ -20,3 +20,4 @@ app/selftest/
 .claude/
 /PLAN-store.md
 /sound-layers-demo.mp3
+/server/dist-pages/
