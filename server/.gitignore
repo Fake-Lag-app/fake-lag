@@ -1,0 +1,6 @@
+node_modules/
+.wrangler/
+.dev.vars
+# copied from app/renderer by `npm run assets`
+public/schema.js
+public/effects.js

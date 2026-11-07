@@ -3,7 +3,7 @@
   const D = {
     he: {
       dir: 'rtl', app: 'לאג מזויף',
-      tab_remote: 'שלט', tab_settings: 'הגדרות', tab_help: 'חיבור ל-OBS וזום',
+      tab_remote: 'שלט', tab_lags: 'לאגים', tab_admin: 'אדמין', slot: 'קיצור', tab_settings: 'הגדרות', tab_help: 'חיבור ל-OBS וזום',
       m_live: 'רגיל', d_live: 'הכל תקין',
       m_lag: 'לאג', d_lag: 'התמונה מקרטעת',
       m_low: 'איכות גרועה', d_low: 'מטושטש',
@@ -56,7 +56,7 @@
     },
     en: {
       dir: 'ltr', app: 'Fake Lag',
-      tab_remote: 'Remote', tab_settings: 'Settings', tab_help: 'OBS & Zoom setup',
+      tab_remote: 'Remote', tab_lags: 'Lags', tab_admin: 'Admin', slot: 'Slot', tab_settings: 'Settings', tab_help: 'OBS & Zoom setup',
       m_live: 'Normal', d_live: 'All good',
       m_lag: 'Lag', d_lag: 'Choppy picture',
       m_low: 'Low quality', d_low: 'Blurry',

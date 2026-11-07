@@ -34,15 +34,26 @@ const LANG = '__LANG__', t = T(LANG), K = new URLSearchParams(location.search).g
 applyI18n(LANG);
 const M = [['live'], ['lag'], ['low'], ['mosh'], ['freeze'], ['black'], ['auto', 'wide danger'], ['reconnect', 'wide']];
 const g = document.getElementById('g');
-g.innerHTML = M.map(([m, c = '']) => `<button class="${c}" data-m="${m}">${t('m_' + m)}<small>${t('d_' + m)}</small></button>`).join('');
+g.innerHTML = M.map(([m, c = '']) => `<button class="${c}" data-m="${m}">${t('m_' + m)}<small>${t('d_' + m)}</small></button>`).join('')
+  + ['7', '8'].map(k => `<button data-slot="${k}" hidden><span></span><small>${t('slot')} ${k}</small></button>`).join('');
 const send = c => fetch('/cmd?k=' + encodeURIComponent(K), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(c) });
-g.onclick = e => { const b = e.target.closest('button'); if (b) { send({ t: 'mode', mode: b.dataset.m }); navigator.vibrate && navigator.vibrate(15); } };
+g.onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  send(b.dataset.slot ? { t: 'slot', k: b.dataset.slot } : { t: 'mode', mode: b.dataset.m });
+  navigator.vibrate && navigator.vibrate(15);
+};
+// slot names come from the computer: shown as plain text only
+const slotLabel = n => n && n[0] === '#' ? t('m_' + n.slice(1)) : n;
 const lvl = document.getElementById('lvl'), lv = document.getElementById('lv'), lost = document.getElementById('lost');
 lvl.oninput = () => { lv.textContent = Math.round(lvl.value * 100) + '%'; send({ t: 'level', level: +lvl.value }); };
 const es = new EventSource('/events?k=' + encodeURIComponent(K));
 es.onmessage = e => {
   const s = JSON.parse(e.data); lost.style.display = 'none';
   g.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.m === s.mode));
+  for (const k of ['7', '8']) {
+    const b = g.querySelector(`[data-slot="${k}"]`), n = s.slots && s.slots[k];
+    b.hidden = !n; b.firstChild.textContent = slotLabel(n) || '';
+  }
   if (document.activeElement !== lvl) { lvl.value = s.level; lv.textContent = Math.round(s.level * 100) + '%'; }
 };
 es.onerror = () => { lost.style.display = 'block'; };

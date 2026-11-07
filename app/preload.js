@@ -11,4 +11,9 @@ contextBridge.exposeInMainWorld('fl', {
   remoteInfo: () => ipcRenderer.invoke('remote:info'),
   newRemoteToken: () => ipcRenderer.invoke('remote:newToken'),
   showCam: () => ipcRenderer.invoke('cam:show'),
+  storeList: q => ipcRenderer.invoke('store:list', q),
+  storeSubmit: item => ipcRenderer.invoke('store:submit', item),
+  storeLike: id => ipcRenderer.invoke('store:like', id),
+  adminPending: () => ipcRenderer.invoke('admin:pending'),
+  adminAct: (id, action) => ipcRenderer.invoke('admin:act', { id, action }),
 });

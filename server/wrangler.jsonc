@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "fake-lag-store",
+  "main": "src/index.js",
+  // the newest date the pinned wrangler's local runtime supports
+  "compatibility_date": "2026-10-26",
+  "observability": { "enabled": true, "traces": { "enabled": true } },
+  // the admin page and the shared engine files; /api/* goes to the Worker
+  "assets": { "directory": "./public", "not_found_handling": "none" },
+  "d1_databases": [
+    // database_id is filled in by `wrangler d1 create fake-lag-store` before the first deploy
+    { "binding": "DB", "database_name": "fake-lag-store", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "migrations" }
+  ]
+  // secrets (never in this file): ADMIN_KEY, HASH_SALT  ->  wrangler secret put ADMIN_KEY
+}

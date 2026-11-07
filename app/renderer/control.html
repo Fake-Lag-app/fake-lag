@@ -20,8 +20,10 @@
 
 <nav id="tabs">
   <button data-tab="remote" data-i18n="tab_remote"></button>
+  <button data-tab="lags" data-i18n="tab_lags"></button>
   <button data-tab="settings" data-i18n="tab_settings"></button>
   <button data-tab="help" data-i18n="tab_help"></button>
+  <button data-tab="admin" data-i18n="tab_admin" hidden></button>
 </nav>
 
 <main>
@@ -45,6 +47,9 @@
       <ul class="keys" id="keys"></ul>
     </div>
   </section>
+
+  <section data-page="lags"><div id="lagsRoot"></div></section>
+  <section data-page="admin"><div id="adminRoot"></div></section>
 
   <!-- settings -->
   <section data-page="settings">
@@ -86,6 +91,9 @@
 </footer>
 
 <script src="i18n.js"></script>
+<script src="schema.js"></script>
+<script src="effects.js"></script>
+<script src="lags.js"></script>
 <script src="control.js"></script>
 </body>
 </html>

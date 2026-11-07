@@ -15,8 +15,33 @@ app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 
 // ---------- settings ----------
 const settingsFile = () => path.join(app.getPath('userData'), 'settings.json');
-const DEFAULTS = { lang: 'he', name: '', photo: '', camId: '', micId: '', outId: '', level: 0.4, setupDone: false, token: '' };
+const Schema = require('./renderer/schema.js');
+// presets: the user's own lags and effects · slots: what Ctrl+Alt+Shift+7 / 8 play
+const DEFAULTS = { lang: 'he', name: '', photo: '', camId: '', micId: '', outId: '', level: 0.4, setupDone: false,
+  presets: [], slots: { 7: '', 8: '' }, nick: '', token: '' };
+// never settable from a window: the phone code, the admin key, the store address
+const PRIVATE = ['token', 'adminKey', 'storeUrl'];
+const STORE_URL_DEFAULT = '';   // filled in once the store server is online
 let S;
+const storeUrl = () => (S.storeUrl || STORE_URL_DEFAULT).replace(/\/$/, '');
+// what windows get: no secrets, just whether this copy is the admin's
+function publicSettings() {
+  const o = { ...S }; for (const k of PRIVATE) delete o[k];
+  o.isAdmin = !!S.adminKey; o.storeReady = !!storeUrl();
+  return o;
+}
+function camSettings() {
+  const { camId, micId, outId, name, photo, lang, level, fakeCam } = S;
+  return { camId, micId, outId, name, photo, lang, level, fakeCam };
+}
+function cleanPresets(list) {
+  if (!Array.isArray(list)) return [];
+  return list.slice(0, 200).map(p => {
+    const v = Schema.validate(p); if (!v.ok) return null;
+    const id = typeof p.id === 'string' && /^[\w-]{1,40}$/.test(p.id) ? p.id : crypto.randomBytes(6).toString('hex');
+    return { ...v.value, id, from: p.from === 'store' ? 'store' : 'mine', sid: typeof p.sid === 'string' ? p.sid.slice(0, 40) : undefined };
+  }).filter(Boolean);
+}
 function loadSettings() {
   try { S = { ...DEFAULTS, ...JSON.parse(fs.readFileSync(settingsFile(), 'utf8')) }; } catch { S = { ...DEFAULTS }; }
   if (!S.token) { S.token = crypto.randomBytes(12).toString('base64url'); saveSettings(); }
@@ -83,14 +108,67 @@ function sendCmd(c) { if (alive(cam)) cam.webContents.send('cmd', c); }
 // ---------- ipc ----------
 ipcMain.on('state', (e, s) => { state = { ...state, ...s }; if (alive(ctl)) ctl.webContents.send('state', state); pushRemote(); });
 ipcMain.on('cmd', (e, c) => sendCmd(c));
-ipcMain.handle('settings:get', () => S);
+ipcMain.handle('settings:get', () => publicSettings());
 ipcMain.handle('settings:set', (e, patch) => {
-  const allowed = Object.keys(DEFAULTS).filter(k => k !== 'token');
-  for (const k of Object.keys(patch)) if (allowed.includes(k)) S[k] = patch[k];
+  const allowed = Object.keys(DEFAULTS).filter(k => !PRIVATE.includes(k));
+  for (const k of Object.keys(patch || {})) {
+    if (!allowed.includes(k)) continue;
+    if (k === 'presets') S.presets = cleanPresets(patch.presets);
+    else if (k === 'slots') S.slots = { 7: String(patch.slots?.[7] || '').slice(0, 40), 8: String(patch.slots?.[8] || '').slice(0, 40) };
+    else S[k] = patch[k];
+  }
   saveSettings();
-  for (const w of [cam, ctl]) if (alive(w)) w.webContents.send('settings', S);
-  return S;
+  const pub = publicSettings();
+  if (alive(ctl)) ctl.webContents.send('settings', pub);
+  // the camera only needs devices, name, photo, language and level, not the whole preset library
+  const touchesCam = ['camId', 'micId', 'outId', 'name', 'photo', 'lang', 'level'].some(k => k in (patch || {}));
+  if (touchesCam && alive(cam)) cam.webContents.send('settings', camSettings());
+  pushRemote();   // slot names may have changed
+  return pub;
 });
+
+// ---------- the store: every call goes through here, never straight from a window ----------
+async function storeFetch(pathname, { method = 'GET', body, admin } = {}) {
+  const base = storeUrl();
+  if (!base) return { ok: false, error: 'offline' };
+  const headers = { 'content-type': 'application/json' };
+  if (admin) { if (!S.adminKey) return { ok: false, error: 'not admin' }; headers.authorization = 'Bearer ' + S.adminKey; }
+  try {
+    const r = await fetch(base + pathname, { method, headers, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(10000) });
+    const data = await r.json().catch(() => ({}));
+    return r.ok ? { ok: true, ...data } : { ok: false, error: data.error || 'http ' + r.status };
+  } catch (e) { return { ok: false, error: 'network' }; }
+}
+// anything that comes back from the server is checked again before a window sees it
+const cleanItems = items => (Array.isArray(items) ? items : []).slice(0, 200).map(it => {
+  const v = Schema.validate(it && it.data); if (!v.ok) return null;
+  return { id: String(it.id).slice(0, 40), likes: Math.max(0, it.likes | 0), status: String(it.status || ''), created: it.created | 0, data: v.value };
+}).filter(Boolean);
+ipcMain.handle('store:list', async (e, { kind, sort } = {}) => {
+  const r = await storeFetch(`/api/items?kind=${kind === 'lag' ? 'lag' : 'effect'}&sort=${sort === 'top' ? 'top' : 'new'}`);
+  return r.ok ? { ok: true, items: cleanItems(r.items) } : r;
+});
+ipcMain.handle('store:submit', async (e, item) => {
+  const v = Schema.validate(item); if (!v.ok) return { ok: false, error: v.error };
+  return storeFetch('/api/submit', { method: 'POST', body: v.value });
+});
+ipcMain.handle('store:like', (e, id) => storeFetch(`/api/like/${encodeURIComponent(String(id).slice(0, 40))}`, { method: 'POST' }));
+ipcMain.handle('admin:pending', async () => {
+  const r = await storeFetch('/api/admin/pending', { admin: true });
+  return r.ok ? { ok: true, items: cleanItems(r.items) } : r;
+});
+ipcMain.handle('admin:act', (e, { id, action } = {}) => {
+  if (!['approve', 'reject', 'delete'].includes(action)) return { ok: false, error: 'bad action' };
+  return storeFetch(`/api/admin/${encodeURIComponent(String(id).slice(0, 40))}/${action}`, { method: 'POST', admin: true });
+});
+
+// ---------- the 7 / 8 slots: a saved lag on a shortcut or the phone ----------
+function playSlot(k) {
+  const id = S.slots && S.slots[k]; if (!id) return;
+  if (Schema.BUILTIN_IDS.includes(id)) return sendCmd({ t: 'mode', mode: id });
+  const p = (S.presets || []).find(x => x.id === id);
+  if (p) sendCmd({ t: 'play', preset: p, id: p.id });
+}
 ipcMain.handle('remote:info', async () => {
   const url = remoteUrl();
   return { url, qr: url ? await QR.toDataURL(url, { margin: 1, width: 240 }) : null };
@@ -112,6 +190,7 @@ function registerShortcuts() {
   const failed = [];
   const reg = (acc, fn) => { if (!globalShortcut.register(acc, fn)) failed.push(acc); };
   for (const [k, mode] of Object.entries(KEYS)) reg(`${MOD}+${k}`, () => sendCmd({ t: 'mode', mode }));
+  for (const k of ['7', '8']) reg(`${MOD}+${k}`, () => playSlot(k));
   reg(`${MOD}+Up`, () => sendCmd({ t: 'level', delta: 0.1 }));
   reg(`${MOD}+Down`, () => sendCmd({ t: 'level', delta: -0.1 }));
   // another app already owns these: tell the user instead of failing silently
@@ -128,7 +207,15 @@ let serverUp = false;
 const remoteUrl = () => { const ip = lanIp(); return serverUp && ip ? `http://${ip}:${PORT}/r?k=${S.token}` : null; };
 
 const sseClients = new Set();
-function pushRemote() { const line = `data: ${JSON.stringify({ mode: state.mode, fx: state.fx, level: state.level })}\n\n`; for (const c of sseClients) c.write(line); }
+function slotName(k) {
+  const id = S.slots && S.slots[k]; if (!id) return '';
+  if (Schema.BUILTIN_IDS.includes(id)) return '#' + id;
+  const p = (S.presets || []).find(x => x.id === id); return p ? p.name : '';
+}
+function pushRemote() {
+  const line = `data: ${JSON.stringify({ mode: state.mode, fx: state.fx, level: state.level, slots: { 7: slotName('7'), 8: slotName('8') } })}\n\n`;
+  for (const c of sseClients) c.write(line);
+}
 function tokenOk(k) {
   const a = Buffer.from(String(k || '')), b = Buffer.from(S.token);
   return a.length === b.length && crypto.timingSafeEqual(a, b);
@@ -174,6 +261,7 @@ function startServer(host = '0.0.0.0') {
         try {
           const c = JSON.parse(body);
           if (c.t === 'mode' && Object.values(KEYS).includes(c.mode)) sendCmd({ t: 'mode', mode: c.mode });
+          else if (c.t === 'slot' && (c.k === '7' || c.k === '8')) playSlot(c.k);
           else if (c.t === 'level' && typeof c.level === 'number') sendCmd({ t: 'level', level: c.level });
           res.writeHead(204);
         } catch { res.writeHead(400); }
@@ -226,10 +314,42 @@ async function selfTest() {
     log.push({ obsStream: { camVisible: cam.isVisible(), renderFpsWhileHidden: Math.round((f1 - f0) / 4.5), streamFps: Math.round(frames / 3), mb: +(bytes.length / 1e6).toFixed(1), spoofedHostStatus: spoof, obsPageStatus: (await fetch(`http://127.0.0.1:${PORT}/obs`)).status } });
     sendCmd({ t: 'mode', mode: 'live' }); cam.show(); await wait(500);
   } catch (e) { log.push({ obsStreamError: String(e) }); }
-  for (const tab of ['remote', 'settings', 'help']) {
-    ctl.webContents.send('selftestTab', tab); await wait(700);
+  for (const tab of ['remote', 'settings', 'help', 'lags']) {
+    ctl.webContents.send('selftestTab', tab); await wait(900);
     fs.writeFileSync(path.join(out, `ctl-${tab}.png`), (await ctl.webContents.capturePage()).toPNG());
   }
+  // the editor: open a new effect, save it, put it on slot 7 and play it from the shortcut path
+  try {
+    const click = txt => ctl.webContents.executeJavaScript(`(() => { const b = [...document.querySelectorAll('#lagsRoot button')].find(x => x.textContent.includes(${JSON.stringify(txt)})); if (b) b.click(); return !!b; })()`);
+    await click('אפקט חדש'); await wait(1500);
+    await ctl.webContents.executeJavaScript(`(() => { const i = document.querySelector('#lagsRoot input[maxlength="40"]'); i.value = 'בדיקה'; i.dispatchEvent(new Event('input')); })()`);
+    fs.writeFileSync(path.join(out, 'ctl-editor.png'), (await ctl.webContents.capturePage()).toPNG());
+    await click('שמירה'); await wait(600);
+    const saved = (S.presets || []).find(p => p.name === 'בדיקה');
+    if (saved) { S.slots = { 7: saved.id, 8: '' }; playSlot('7'); await wait(800); }
+    log.push({ editor: { saved: !!saved, kind: saved && saved.kind, layers: saved && saved.video.map(b => b.b), slotPlayedMode: state.mode, slotFx: state.fx } });
+    // a preset with bad data must never be stored
+    const before = S.presets.length; S.presets = cleanPresets([...S.presets, { kind: 'effect', name: '<script>', video: [{ b: 'blur' }] }, { kind: 'effect', name: 'x', video: [{ b: 'eval' }] }]);
+    log.push({ badPresetsRejected: S.presets.length === before });
+    await click('→ חזרה'); await wait(300);
+    // the store, end to end, through the same IPC the windows use
+    if (saved && storeUrl()) {
+      const sub = await storeFetch('/api/submit', { method: 'POST', body: { ...saved, by: 'בודק' } });
+      const pend = await storeFetch('/api/admin/pending', { admin: true });
+      const inPending = pend.ok && pend.items.some(i => i.id === sub.id);
+      const appr = await storeFetch(`/api/admin/${sub.id}/approve`, { method: 'POST', admin: true });
+      const list = await storeFetch('/api/items?kind=effect&sort=new');
+      const visible = list.ok && cleanItems(list.items).some(i => i.id === sub.id && i.data.name === 'בדיקה');
+      const noKey = await (async () => { const k = S.adminKey; S.adminKey = ''; const r = await storeFetch('/api/admin/pending', { admin: true }); S.adminKey = k; return r; })();
+      log.push({ store: { submitted: !!sub.id, inPending, approved: appr.ok, visibleInStore: visible, adminWithoutKey: noKey.error, settingsLeakKey: JSON.stringify(publicSettings()).includes(S.adminKey) } });
+      ctl.webContents.send('selftestTab', 'admin'); await wait(1500);
+      fs.writeFileSync(path.join(out, 'ctl-admin.png'), (await ctl.webContents.capturePage()).toPNG());
+      ctl.webContents.send('selftestTab', 'lags');
+      await ctl.webContents.executeJavaScript(`(() => { const b = [...document.querySelectorAll('#lagsRoot button')].find(x => x.textContent === 'חנות'); b && b.click(); })()`); await wait(1800);
+      fs.writeFileSync(path.join(out, 'ctl-store.png'), (await ctl.webContents.capturePage()).toPNG());
+    }
+    await click('→ חזרה'); await wait(300);
+  } catch (e) { log.push({ editorError: String(e) }); }
   fs.writeFileSync(path.join(out, 'log.json'), JSON.stringify(log, null, 1));
   app.quit();
 }
@@ -244,7 +364,12 @@ app.on('second-instance', () => { if (alive(ctl)) { if (ctl.isMinimized()) ctl.r
 
 app.whenReady().then(() => {
   loadSettings();
-  if (SELFTEST) { S.setupDone = true; S.name = 'Yonatan'; }
+  // the self-test never opens the real camera: it draws a test pattern instead
+  if (SELFTEST) {
+    S.setupDone = true; S.name = 'Yonatan'; S.fakeCam = true;
+    // optional: run the store flow against a local test server
+    if (process.env.FL_TEST_STORE) { S.storeUrl = process.env.FL_TEST_STORE; S.adminKey = process.env.FL_TEST_ADMIN || ''; }
+  }
   // camera and mic only for our own pages, nothing else
   const ownFrame = wc => !!wc && isOwnPage(wc.getURL());
   session.defaultSession.setPermissionRequestHandler((wc, perm, cb) => cb(perm === 'media' && ownFrame(wc)));

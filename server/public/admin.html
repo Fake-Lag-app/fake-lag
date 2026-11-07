@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Fake Lag · אדמין</title>
+<style>
+  :root{--bg:#101216;--card:#191c22;--line:#2a2e37;--ink:#eef0f3;--mute:#9aa1ad;--accent:#ff5a5a;--ok:#46d388}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,sans-serif;padding:16px;max-width:640px;margin-inline:auto}
+  h1{font-size:19px;margin:0 0 12px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}
+  .head{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .badge{font-size:11px;color:var(--mute);border:1px solid var(--line);border-radius:999px;padding:0 8px}
+  small,.note{color:var(--mute);font-size:12.5px}
+  .btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  button{font:inherit;font-size:14px;border-radius:9px;padding:8px 14px;cursor:pointer;border:1px solid var(--line);background:none;color:var(--ink)}
+  button.ok{background:var(--ok);border-color:var(--ok);color:#06210f;font-weight:600}
+  button.no{color:#ff8a8a}
+  canvas{width:100%;aspect-ratio:16/9;border-radius:12px;background:#000;border:1px solid var(--line);margin-bottom:6px}
+  .seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin:10px 0}
+  .seg button{flex:1;border:0;border-radius:0;color:var(--mute)}
+  .seg button.on{background:var(--card);color:var(--ink)}
+  input{font:inherit;width:100%;padding:10px;border-radius:9px;border:1px solid var(--line);background:#0d0f13;color:var(--ink);direction:ltr}
+  #login,#app{display:none}
+</style>
+</head>
+<body>
+<h1>Fake Lag · אדמין</h1>
+<div id="login">
+  <p class="note">הדבק את קוד האדמין. הוא נשמר רק בלשונית הזו עד שסוגרים אותה.</p>
+  <input id="key" type="password" autocomplete="off">
+  <div class="btns"><button class="ok" id="go">כניסה</button></div>
+  <p class="note" id="loginMsg"></p>
+</div>
+<div id="app">
+  <canvas id="pv" width="640" height="360"></canvas>
+  <small id="pvNote"></small>
+  <div class="seg">
+    <button data-v="pending" class="on">ממתינים</button>
+    <button data-v="effect">אפקטים בחנות</button>
+    <button data-v="lag">לאגים בחנות</button>
+  </div>
+  <div id="list"></div>
+  <div class="btns"><button id="logout">יציאה</button></div>
+</div>
+<script src="schema.js"></script>
+<script src="effects.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>
