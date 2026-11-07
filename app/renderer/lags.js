@@ -262,11 +262,11 @@
       h('label', { class: 'sl' }, h('span', { text: t('name') }),
         h('input', { maxlength: SC.LIMITS.name, value: draft.name, placeholder: t('namePh'), oninput: e => { draft.name = e.target.value; } })),
       h('div', { class: 'pvwrap' }, canvas, h('small', { text: t('previewHint') })),
-      draft.kind === 'effect' ? layersFor(draft) : [
+      ...(draft.kind === 'effect' ? [layersFor(draft)] : [
         h('h4', { text: t('steps') }), stepsEditor(),
         h('select', { onchange: e => { draft.end = e.target.value; } },
           h('option', { value: 'hold', text: t('endHold'), selected: draft.end !== 'live' || null }),
-          h('option', { value: 'live', text: t('endLive'), selected: draft.end === 'live' || null }))],
+          h('option', { value: 'live', text: t('endLive'), selected: draft.end === 'live' || null }))]),
       h('div', { class: 'row' },
         h('button', { class: 'primary', text: t('save'), onclick: async () => {
           const v = SC.validate(draft);

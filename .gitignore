@@ -19,3 +19,4 @@ app/selftest/
 # local tooling
 .claude/
 /PLAN-store.md
+/sound-layers-demo.mp3

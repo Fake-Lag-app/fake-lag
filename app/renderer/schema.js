@@ -36,7 +36,7 @@
   };
 
   // heavy layers (per-block work every frame) are limited so a shared effect can't stall the camera
-  const HEAVY = { mosh: 2, slices: 2, bands: 3, blur: 2, rgbSplit: 2 };
+  const HEAVY = { mosh: 1, slices: 2, bands: 3, blur: 1, rgbSplit: 1 };
   const LIMITS = { name: 40, by: 24, videoBlocks: 8, audioBlocks: 6, steps: 30, stepMs: 60000, totalMs: 120000, bytes: 8000 };
 
   // ---------- built-ins ----------

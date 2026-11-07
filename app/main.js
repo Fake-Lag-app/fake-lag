@@ -279,6 +279,18 @@ async function selfTest() {
   const out = path.join(__dirname, 'selftest'); fs.mkdirSync(out, { recursive: true });
   const wait = ms => new Promise(r => setTimeout(r, ms));
   await wait(3500);
+  // screenshots of the remote at its normal size, for the landing page
+  if (process.env.FL_SHOTS) {
+    ctl.setContentSize(460, 860); await wait(500);
+    for (const tab of ['remote', 'lags']) {
+      ctl.webContents.send('selftestTab', tab); await wait(1200);
+      fs.writeFileSync(path.join(out, `shot-${tab}.png`), (await ctl.webContents.capturePage()).toPNG());
+    }
+    ctl.webContents.send('selftestTab', 'lags'); await wait(300);
+    await ctl.webContents.executeJavaScript(`(() => { const b = [...document.querySelectorAll('#lagsRoot button')].find(x => x.textContent.includes('לאג חדש')); b && b.click(); })()`); await wait(1800);
+    fs.writeFileSync(path.join(out, 'shot-editor.png'), (await ctl.webContents.capturePage()).toPNG());
+    ctl.webContents.send('selftestTab', 'remote');
+  }
   // put the remote on top of the camera window, the way Zoom covers it during a lesson
   ctl.setBounds(cam.getBounds()); ctl.focus();
   const log = [];
@@ -332,6 +344,29 @@ async function selfTest() {
     const before = S.presets.length; S.presets = cleanPresets([...S.presets, { kind: 'effect', name: '<script>', video: [{ b: 'blur' }] }, { kind: 'effect', name: 'x', video: [{ b: 'eval' }] }]);
     log.push({ badPresetsRejected: S.presets.length === before });
     await click('→ חזרה'); await wait(300);
+    // every picture layer alone on the test pattern, timed; plus the heaviest effect the rules allow
+    const blocks = await ctl.webContents.executeJavaScript(`(async () => {
+      const cases = Object.keys(FLSchema.VIDEO).map(b => [b, [{ b, ...(b === 'caption' ? { text: 'בדיקה 123' } : {}) }]]);
+      cases.push(['HEAVIEST', [{ b: 'mosh', block: 16, keep: 0.1, smear: 0.3 }, { b: 'blur', px: 30 }, { b: 'rgbSplit', px: 40 }, { b: 'slices', count: 40, px: 80 }, { b: 'slices', count: 40, px: 80 }, { b: 'bands', a: 1, count: 20 }, { b: 'bands', a: 1, count: 20 }, { b: 'bands', a: 1, count: 20 }]]);
+      cases.push(['TOO_HEAVY', [{ b: 'mosh' }, { b: 'mosh' }]]);
+      const out = [];
+      for (const [name, video] of cases) {
+        const v = FLSchema.validate({ kind: 'effect', name: 'x', video });
+        const c = document.createElement('canvas'); c.width = 1280; c.height = 720;
+        const e = FLEffects.createEngine({ W: 1280, H: 720, out: c, env: { name: 'Yonatan', lang: 'he' }, drawSource: (g, W, H) => {
+          const gr = g.createLinearGradient(0, 0, W, H); gr.addColorStop(0, '#2b4c7e'); gr.addColorStop(1, '#7e2b5c'); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+          g.fillStyle = '#ffd36b'; g.beginPath(); g.arc(W / 2, H / 2, 100, 0, 7); g.fill(); g.fillStyle = '#fff'; g.font = 'bold 80px sans-serif'; g.textAlign = 'center'; g.fillText('TEST', W / 2, 130); } });
+        e.play(v.ok ? v.value : 'live', { t: 0 });
+        const t0 = performance.now(); let n = 0;
+        for (let t = 0; t < 2000; t += 33) { e.frame(t + 100000); n++; }
+        const ms = (performance.now() - t0) / n;
+        out.push({ name, ok: v.ok, err: v.error, ms: Math.round(ms * 10) / 10, img: c.toDataURL('image/jpeg', 0.6) });
+      }
+      return out;
+    })()`);
+    const sheet = path.join(out, 'blocks'); fs.mkdirSync(sheet, { recursive: true });
+    for (const b of blocks) fs.writeFileSync(path.join(sheet, b.name + '.jpg'), Buffer.from(b.img.split(',')[1], 'base64'));
+    log.push({ videoBlocks: blocks.map(({ name, ok, err, ms }) => ({ name, ok, err, ms })) });
     // the store, end to end, through the same IPC the windows use
     if (saved && storeUrl()) {
       const sub = await storeFetch('/api/submit', { method: 'POST', body: { ...saved, by: 'בודק' } });
