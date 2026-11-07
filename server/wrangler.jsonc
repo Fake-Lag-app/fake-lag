@@ -7,6 +7,7 @@
   "observability": { "enabled": true, "traces": { "enabled": true } },
   // the admin page and the shared engine files; /api/* goes to the Worker
   "assets": { "directory": "./public", "not_found_handling": "none" },
+  "ai": { "binding": "AI" },
   "d1_databases": [
     // database_id is filled in by `wrangler d1 create fake-lag-store` before the first deploy
     { "binding": "DB", "database_name": "fake-lag-store", "database_id": "6860d654-9940-4c7e-8a05-9b72cb46a404", "migrations_dir": "migrations" }

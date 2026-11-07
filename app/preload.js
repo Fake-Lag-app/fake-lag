@@ -18,4 +18,13 @@ contextBridge.exposeInMainWorld('fl', {
   adminCall: (path, method, body) => ipcRenderer.invoke('admin:call', { path, method, body }),
   getAnnounce: () => ipcRenderer.invoke('announce:get'),
   onAnnounce: on('announce'),
+  obsStatus: () => ipcRenderer.invoke('obs:status'),
+  obsStart: restart => ipcRenderer.invoke('obs:start', { restart }),
+  obsInstall: () => ipcRenderer.invoke('obs:install'),
+  onObs: on('obs'),
+  cableInstall: () => ipcRenderer.invoke('cable:install'),
+  appInfo: () => ipcRenderer.invoke('app:info'),
+  helpAI: (messages, diag, lang) => ipcRenderer.invoke('help:ai', { messages, diag, lang }),
+  helpSend: (text, diag) => ipcRenderer.invoke('help:send', { text, diag }),
+  helpThread: () => ipcRenderer.invoke('help:thread'),
 });

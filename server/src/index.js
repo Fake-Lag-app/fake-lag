@@ -1,12 +1,16 @@
 // Fake Lag store: people share lags and effects, the admin approves them.
 // Public:  GET /api/items  GET /api/announce  POST /api/submit  POST /api/like/:id  POST /api/report/:id
+//          POST /api/ai (setup helper)  POST /api/chat/send  POST /api/chat/thread (talk to the admin)
 // Admin (Authorization: Bearer ADMIN_KEY):
-//   GET  /api/admin/(pending|items|stats|config|blocks|log)
+//   GET  /api/admin/(pending|items|stats|config|blocks|log|threads)  GET /api/admin/thread/:k  POST /api/admin/thread/:k/(reply|close)
 //   POST /api/admin/(config|bulk|unblock)  POST /api/admin/:id/(approve|reject|delete|unpublish|feature|unfeature|clearReports|block|edit)
 // Everything else is served from ./public (the admin page).
 import Schema from '../../app/renderer/schema.js';
+import { askAI, cleanDiag, cleanHistory } from './help.js';
 
-const LIMITS = { submitsPerDay: 5, likesPerItemPerDay: 1, adminFailsPerDay: 20, maxPending: 500, bodyBytes: 10000 };
+const LIMITS = { submitsPerDay: 5, likesPerItemPerDay: 1, adminFailsPerDay: 20, maxPending: 500, bodyBytes: 10000,
+  chatPerDay: 20, aiPerDay: 40, chatText: 1000, maxOpenThreads: 2000 };
+const THREAD = /^[0-9a-f]{32}$/;
 const ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const day = () => Math.floor(Date.now() / 86400000);
 const now = () => Math.floor(Date.now() / 1000);
@@ -201,6 +205,60 @@ async function api(request, env, url) {
     return json({ ok: true });
   }
 
+  // ---------- help: the AI helper (nothing stored) ----------
+  if (m === 'POST' && parts[1] === 'ai' && parts.length === 2) {
+    const body = await readJson(request);
+    if (body.error) return fail(body.error, body.status);
+    const b = body.value || {};
+    const messages = cleanHistory(b.messages);
+    if (!messages) return fail('bad request', 400);
+    if (!env.AI) return fail('ai offline', 503);
+    const who = await visitor(request, env);
+    if (!(await underLimit(env, `ai:${who}`, LIMITS.aiPerDay))) return fail('rate', 429);
+    try {
+      const out = await askAI(env, { messages, diag: cleanDiag(b.diag), lang: b.lang === 'en' ? 'en' : 'he' });
+      return json(out);
+    } catch (e) {
+      console.error(JSON.stringify({ msg: 'ai error', error: String(e && e.message || e) }));
+      return fail('ai busy', 503);
+    }
+  }
+
+  // ---------- help: messages to the admin, one thread per install ----------
+  if (m === 'POST' && parts[1] === 'chat' && parts.length === 3 && (parts[2] === 'send' || parts[2] === 'thread')) {
+    const body = await readJson(request);
+    if (body.error) return fail(body.error, body.status);
+    const b = body.value || {};
+    if (typeof b.inst !== 'string' || !INST.test(b.inst)) return fail('bad request', 400);
+    const k = await stableKey(env, 'inst', b.inst);
+
+    if (parts[2] === 'thread') {
+      const { results } = await env.DB.prepare(`SELECT id, t, who, text FROM msgs WHERE k = ?1 ORDER BY id DESC LIMIT 100`).bind(k).all();
+      await env.DB.prepare(`UPDATE threads SET unread_user = 0 WHERE k = ?1 AND unread_user > 0`).bind(k).run();
+      return json({ msgs: results.reverse() });
+    }
+
+    const text = plain(b.text, LIMITS.chatText);
+    if (!text) return fail('empty', 400);
+    const who = await visitor(request, env);
+    if (!(await underLimit(env, `chat:${who}`, LIMITS.chatPerDay))) return fail('rate', 429);
+    const ipk = await stableKey(env, 'ip', request.headers.get('cf-connecting-ip') || 'local');
+    const blocked = await env.DB.prepare(`SELECT 1 FROM blocks WHERE k = ?1 OR k = ?2 LIMIT 1`).bind(ipk, k).first();
+    if (blocked) return json({ ok: true });     // looks sent, goes nowhere
+    const exists = await env.DB.prepare(`SELECT 1 FROM threads WHERE k = ?1`).bind(k).first();
+    if (!exists) {
+      const open = await env.DB.prepare(`SELECT COUNT(*) AS n FROM threads WHERE status = 'open'`).first();
+      if (open.n >= LIMITS.maxOpenThreads) return fail('busy', 503);
+    }
+    const diag = JSON.stringify(cleanDiag(b.diag)), nick = plain(b.nick, 24) || null, t = now();
+    await env.DB.batch([
+      env.DB.prepare(`INSERT INTO threads (k, created, updated, unread_admin, nick, diag) VALUES (?1, ?2, ?2, 1, ?3, ?4)
+        ON CONFLICT(k) DO UPDATE SET updated = ?2, unread_admin = unread_admin + 1, status = 'open', nick = COALESCE(?3, nick), diag = ?4`).bind(k, t, nick, diag),
+      env.DB.prepare(`INSERT INTO msgs (k, t, who, text) VALUES (?1, ?2, 'user', ?3)`).bind(k, t, text),
+    ]);
+    return json({ ok: true });
+  }
+
   if (parts[1] === 'admin') {
     const who = await visitor(request, env);
     // too many wrong keys from this visitor today: stop answering, even with the right key
@@ -240,7 +298,8 @@ async function api(request, env, url) {
         env.DB.prepare(`SELECT COUNT(*) AS n FROM blocks`).first(),
         downloads(),
       ]);
-      return json({ byStatus: byStatus.results, ...totals, blocks: blocks.n, top: top.results.map(rowOut), perDay: perDay.results, downloads: dl });
+      const chat = await env.DB.prepare(`SELECT COUNT(*) AS threads, COALESCE(SUM(unread_admin), 0) AS unread FROM threads WHERE status = 'open'`).first();
+      return json({ byStatus: byStatus.results, ...totals, blocks: blocks.n, top: top.results.map(rowOut), perDay: perDay.results, downloads: dl, chat });
     }
 
     if (p2 === 'config' && parts.length === 3 && (m === 'GET' || m === 'POST')) {
@@ -283,6 +342,50 @@ async function api(request, env, url) {
       for (const id of ids) if (await itemAction(env, id, action)) n++;
       await audit(env, 'bulk:' + action, null, `${n} items`);
       return json({ ok: true, n });
+    }
+
+    // ---------- support inbox ----------
+    if (m === 'GET' && p2 === 'threads' && parts.length === 3) {
+      const status = url.searchParams.get('status') === 'closed' ? 'closed' : 'open';
+      const { results } = await env.DB.prepare(
+        `SELECT th.k, th.updated, th.unread_admin, th.status, th.nick, th.diag,
+           (SELECT text FROM msgs WHERE msgs.k = th.k ORDER BY id DESC LIMIT 1) AS last,
+           (SELECT who FROM msgs WHERE msgs.k = th.k ORDER BY id DESC LIMIT 1) AS lastWho
+         FROM threads th WHERE th.status = ?1 ORDER BY th.unread_admin > 0 DESC, th.updated DESC LIMIT 200`).bind(status).all();
+      const unread = await env.DB.prepare(`SELECT COALESCE(SUM(unread_admin), 0) AS n FROM threads`).first();
+      return json({ threads: results.map(r => ({ ...r, diag: JSON.parse(r.diag || '{}') })), unread: unread.n });
+    }
+    if (p2 === 'thread' && THREAD.test(parts[3] || '')) {
+      const k = parts[3];
+      const th = await env.DB.prepare(`SELECT * FROM threads WHERE k = ?1`).bind(k).first();
+      if (!th) return fail('not found', 404);
+      if (m === 'GET' && parts.length === 4) {
+        const { results } = await env.DB.prepare(`SELECT id, t, who, text FROM msgs WHERE k = ?1 ORDER BY id DESC LIMIT 200`).bind(k).all();
+        await env.DB.prepare(`UPDATE threads SET unread_admin = 0 WHERE k = ?1`).bind(k).run();
+        return json({ thread: { ...th, diag: JSON.parse(th.diag || '{}') }, msgs: results.reverse() });
+      }
+      if (m === 'POST' && parts.length === 5 && parts[4] === 'reply') {
+        const body = await readJson(request);
+        if (body.error) return fail(body.error, body.status);
+        const text = plain(body.value && body.value.text, 2000);
+        if (!text) return fail('empty', 400);
+        const t = now();
+        await env.DB.batch([
+          env.DB.prepare(`INSERT INTO msgs (k, t, who, text) VALUES (?1, ?2, 'admin', ?3)`).bind(k, t, text),
+          env.DB.prepare(`UPDATE threads SET updated = ?2, unread_user = unread_user + 1, unread_admin = 0 WHERE k = ?1`).bind(k, t),
+        ]);
+        await audit(env, 'reply', null, k.slice(0, 8));
+        return json({ ok: true });
+      }
+      if (m === 'POST' && parts.length === 5 && (parts[4] === 'close' || parts[4] === 'reopen' || parts[4] === 'block')) {
+        if (parts[4] === 'block') {
+          await env.DB.prepare(`INSERT OR IGNORE INTO blocks (k, created, note) VALUES (?1, ?2, ?3)`).bind(k, now(), 'chat').run();
+        }
+        await env.DB.prepare(`UPDATE threads SET status = ?2, unread_admin = 0 WHERE k = ?1`).bind(k, parts[4] === 'reopen' ? 'open' : 'closed').run();
+        await audit(env, 'chat:' + parts[4], null, k.slice(0, 8));
+        return json({ ok: true });
+      }
+      return fail('not found', 404);
     }
 
     if (!ID.test(p2)) return fail('not found', 404);

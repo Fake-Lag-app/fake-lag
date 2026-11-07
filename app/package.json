@@ -1,7 +1,7 @@
 {
   "name": "fake-lag",
   "productName": "Fake Lag",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Make your Zoom / Google Meet camera and mic look like your internet is dying.",
   "author": "Fake Lag",
   "main": "main.js",
@@ -22,7 +22,7 @@
     "appId": "app.fakelag",
     "productName": "Fake Lag",
     "copyright": "Fake Lag",
-    "files": ["main.js", "preload.js", "renderer/**", "package.json"],
+    "files": ["main.js", "preload.js", "obs.js", "cable.js", "renderer/**", "package.json"],
     "directories": { "buildResources": "build", "output": "dist" },
     "win": { "target": "nsis", "icon": "build/icon.ico", "signAndEditExecutable": false },
     "nsis": {

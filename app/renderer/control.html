@@ -27,6 +27,7 @@
   <button data-tab="lags" data-i18n="tab_lags"></button>
   <button data-tab="settings" data-i18n="tab_settings"></button>
   <button data-tab="help" data-i18n="tab_help"></button>
+  <button data-tab="chat" data-i18n="tab_chat"></button>
   <button data-tab="admin" data-i18n="tab_admin" hidden></button>
 </nav>
 
@@ -82,11 +83,17 @@
 
   <!-- help -->
   <section data-page="help">
+    <div id="setupRoot"></div>
+    <details class="manual"><summary data-i18n="manual"></summary>
     <div class="card" id="sec-obs"><h3 data-i18n="w_t3"></h3>
       <div class="url"><code id="obsUrl">http://127.0.0.1:5174/obs</code><button id="copyObs" class="ghost" data-i18n="copy"></button></div>
       <div data-i18n-html="h_obs"></div></div>
     <div class="card" id="sec-zoom"><h3 data-i18n="w_t4"></h3><div data-i18n-html="h_zoom"></div></div>
+    </details>
   </section>
+
+  <!-- help chat: AI helper + talk to a person -->
+  <section data-page="chat"><div id="chatRoot"></div></section>
 </main>
 
 <footer id="wizNav" hidden>
@@ -99,6 +106,8 @@
 <script src="effects.js"></script>
 <script src="admin-ui.js"></script>
 <script src="lags.js"></script>
+<script src="setup.js"></script>
+<script src="help.js"></script>
 <script src="control.js"></script>
 </body>
 </html>

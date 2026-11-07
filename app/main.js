@@ -2,6 +2,8 @@
 const { app, BrowserWindow, ipcMain, globalShortcut, session, shell } = require('electron');
 const http = require('http'), os = require('os'), fs = require('fs'), path = require('path'), crypto = require('crypto');
 const QR = require('qrcode');
+const { createObs } = require('./obs.js');
+const Cable = require('./cable.js');
 
 const SELFTEST = process.argv.includes('--selftest');
 const PORT = 5174;
@@ -18,9 +20,9 @@ const settingsFile = () => path.join(app.getPath('userData'), 'settings.json');
 const Schema = require('./renderer/schema.js');
 // presets: the user's own lags and effects · slots: what Ctrl+Alt+Shift+7 / 8 play
 const DEFAULTS = { lang: 'he', name: '', photo: '', camId: '', micId: '', outId: '', level: 0.4, setupDone: false,
-  presets: [], slots: { 7: '', 8: '' }, nick: '', token: '' };
+  presets: [], slots: { 7: '', 8: '' }, nick: '', token: '', obsAuto: true, obsReady: false, chatUsed: false, zoomDone: false };
 // never settable from a window: the phone code, the admin key, the store address
-const PRIVATE = ['token', 'adminKey', 'storeUrl', 'inst'];
+const PRIVATE = ['token', 'adminKey', 'storeUrl', 'inst', 'obsPass'];
 const STORE_URL_DEFAULT = 'https://fake-lag-store.pages.dev';
 let S;
 const storeUrl = () => (S.storeUrl || STORE_URL_DEFAULT).replace(/\/$/, '');
@@ -47,6 +49,8 @@ function loadSettings() {
   if (!S.token) { S.token = crypto.randomBytes(12).toString('base64url'); saveSettings(); }
   // a random id for this install, sent only when sharing to the store, so the admin can block a spammer
   if (!S.inst) { S.inst = crypto.randomUUID(); saveSettings(); }
+  // password for OBS's remote control, used only if we are the ones who turn it on
+  if (!S.obsPass) { S.obsPass = crypto.randomBytes(18).toString('base64url'); saveSettings(); }
 }
 function saveSettings() { fs.mkdirSync(path.dirname(settingsFile()), { recursive: true }); fs.writeFileSync(settingsFile(), JSON.stringify(S, null, 1)); }
 
@@ -159,7 +163,7 @@ ipcMain.handle('store:like', (e, id) => storeFetch(`/api/like/${storeId(id)}`, {
 ipcMain.handle('store:report', (e, id) => storeFetch(`/api/report/${storeId(id)}`, { method: 'POST' }));
 
 // the admin panel talks to /api/admin/* only, and only through here: the key never reaches a window
-const ADMIN_PATH = /^\/api\/admin\/[a-zA-Z0-9-]+(\/[a-zA-Z]+)?(\?[a-zA-Z0-9=&%._-]*)?$/;
+const ADMIN_PATH = /^\/api\/admin(\/[a-zA-Z0-9-]+){1,3}(\?[a-zA-Z0-9=&%._-]*)?$/;
 ipcMain.handle('admin:call', async (e, { path: p, method, body } = {}) => {
   if (!alive(ctl) || e.sender !== ctl.webContents) return { status: 403, error: 'forbidden' };
   if (typeof p !== 'string' || p.length > 300 || !ADMIN_PATH.test(p)) return { status: 400, error: 'bad path' };
@@ -189,6 +193,40 @@ async function checkAnnounce() {
   if (alive(ctl)) ctl.webContents.send('announce', announce);
 }
 ipcMain.handle('announce:get', () => announce);
+
+// ---------- OBS and VB-Cable, set up by the app ----------
+const obs = createObs({ getPass: () => S.obsPass, url: `http://127.0.0.1:${PORT}/obs`, log: m => console.log('[obs]', m) });
+const fromCtl = e => alive(ctl) && e.sender === ctl.webContents;
+ipcMain.handle('obs:status', e => fromCtl(e) ? obs.status() : null);
+ipcMain.handle('obs:start', async (e, { restart } = {}) => {
+  if (!fromCtl(e)) return null;
+  const st = await obs.start({ restart: !!restart });
+  if (st.virtualCam && !S.obsReady) { S.obsReady = true; saveSettings(); }
+  return st;
+});
+ipcMain.handle('obs:install', e => fromCtl(e) ? obs.install() : null);
+ipcMain.handle('cable:install', e => fromCtl(e) ? Cable.install(m => console.log('[cable]', m)) : null);
+ipcMain.handle('app:info', () => ({ version: app.getVersion(), os: `Windows ${os.release()}` }));
+
+// ---------- help: the AI helper and messages to the admin ----------
+ipcMain.handle('help:ai', async (e, { messages, diag, lang } = {}) => {
+  if (!fromCtl(e)) return { ok: false, error: 'forbidden' };
+  return storeFetch('/api/ai', { method: 'POST', body: { messages, diag, lang } });
+});
+ipcMain.handle('help:send', async (e, { text, diag } = {}) => {
+  if (!fromCtl(e)) return { ok: false, error: 'forbidden' };
+  const r = await storeFetch('/api/chat/send', { method: 'POST', body: { inst: S.inst, text: String(text || '').slice(0, 1000), nick: S.nick || '', diag } });
+  if (r.ok && !S.chatUsed) { S.chatUsed = true; saveSettings(); }
+  return r;
+});
+ipcMain.handle('help:thread', async e => {
+  if (!fromCtl(e)) return { ok: false, error: 'forbidden' };
+  if (!S.chatUsed) return { ok: true, msgs: [] };
+  const r = await storeFetch('/api/chat/thread', { method: 'POST', body: { inst: S.inst } });
+  if (!r.ok) return r;
+  const msgs = (Array.isArray(r.msgs) ? r.msgs : []).slice(-100).map(m => ({ id: m.id | 0, t: m.t | 0, who: m.who === 'admin' ? 'admin' : 'user', text: String(m.text || '').slice(0, 2000) }));
+  return { ok: true, msgs };
+});
 
 // ---------- the 7 / 8 slots: a saved lag on a shortcut or the phone ----------
 function playSlot(k) {
@@ -354,10 +392,28 @@ async function selfTest() {
     log.push({ obsStream: { camVisible: cam.isVisible(), renderFpsWhileHidden: Math.round((f1 - f0) / 4.5), streamFps: Math.round(frames / 3), mb: +(bytes.length / 1e6).toFixed(1), spoofedHostStatus: spoof, obsPageStatus: (await fetch(`http://127.0.0.1:${PORT}/obs`)).status } });
     sendCmd({ t: 'mode', mode: 'live' }); cam.show(); await wait(500);
   } catch (e) { log.push({ obsStreamError: String(e) }); }
-  for (const tab of ['remote', 'settings', 'help', 'lags']) {
-    ctl.webContents.send('selftestTab', tab); await wait(900);
+  for (const tab of ['remote', 'settings', 'help', 'chat', 'lags']) {
+    ctl.webContents.send('selftestTab', tab); await wait(tab === 'help' ? 2500 : 900);
     fs.writeFileSync(path.join(out, `ctl-${tab}.png`), (await ctl.webContents.capturePage()).toPNG());
   }
+  // the Connect tab checks everything (read-only here: it never starts or changes OBS in a self-test)
+  try {
+    ctl.webContents.send('selftestTab', 'help'); await wait(2500);
+    const rows = await ctl.webContents.executeJavaScript(`[...document.querySelectorAll('#setupRoot .srow')].map(r => r.className.replace('srow ', '') + ': ' + r.querySelector('b').textContent)`);
+    const diag = await ctl.webContents.executeJavaScript('window.FLSetup.diag()');
+    // the help chat answers (or explains why not) and offers buttons
+    ctl.webContents.send('selftestTab', 'chat'); await wait(500);
+    const chat = await ctl.webContents.executeJavaScript(`(async () => {
+      const box = document.querySelector('#chatRoot textarea'); box.value = 'בזום רואים מסך שחור';
+      [...document.querySelectorAll('#chatRoot button')].find(b => b.textContent === 'שלח').click();
+      for (let i = 0; i < 60 && document.querySelector('#chatRoot .cmsg.wait'); i++) await new Promise(r => setTimeout(r, 500));
+      const msgs = [...document.querySelectorAll('#chatRoot .cmsg')];
+      return { last: msgs[msgs.length - 1].innerText.slice(0, 200), buttons: [...msgs[msgs.length - 1].querySelectorAll('button')].map(b => b.textContent) };
+    })()`);
+    fs.writeFileSync(path.join(out, 'ctl-chat-answer.png'), (await ctl.webContents.capturePage()).toPNG());
+    log.push({ setup: { rows, diag, chat } });
+  } catch (e) { log.push({ setupError: String(e) }); }
+  ctl.webContents.send('selftestTab', 'lags'); await wait(1200);
   // the editor: open a new effect, save it, put it on slot 7 and play it from the shortcut path
   try {
     const click = txt => ctl.webContents.executeJavaScript(`(() => { const b = [...document.querySelectorAll('#lagsRoot button')].find(x => x.textContent.includes(${JSON.stringify(txt)})); if (b) b.click(); return !!b; })()`);
@@ -463,7 +519,9 @@ app.whenReady().then(() => {
   registerShortcuts();
   startServer(SELFTEST ? '127.0.0.1' : '0.0.0.0');   // self-test stays local: no firewall prompt
   if (!SELFTEST || process.env.FL_TEST_STORE) { checkAnnounce(); setInterval(checkAnnounce, 15 * 60 * 1000); }
+  // once OBS was set up, bring it up hidden every time the app opens
+  if (!SELFTEST && S.obsAuto && S.obsReady) setTimeout(() => obs.start().then(st => alive(ctl) && ctl.webContents.send('obs', st)), 1500);
   if (SELFTEST) selfTest();
 });
-app.on('will-quit', () => globalShortcut.unregisterAll());
+app.on('will-quit', () => { globalShortcut.unregisterAll(); obs.shutdown(); });
 app.on('window-all-closed', () => app.quit());

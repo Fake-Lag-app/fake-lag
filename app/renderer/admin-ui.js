@@ -2,7 +2,7 @@
 // The page that mounts it supplies call(path, method, body) -> { status, ...json } and preview(preset).
 // Everything that came from users is put on screen with textContent only, never as HTML.
 (function (root) {
-  let section = 'pending';
+  let section = 'inbox';
   const sel = new Set();
   let opts = null, host = null;
 
@@ -28,17 +28,66 @@
   }
 
   const SECTIONS = [
-    ['pending', 'ממתינים'], ['approved', 'בחנות'], ['reported', 'דיווחים'], ['rejected', 'נדחו'],
+    ['inbox', 'הודעות'], ['pending', 'ממתינים'], ['approved', 'בחנות'], ['reported', 'דיווחים'], ['rejected', 'נדחו'],
     ['stats', 'סטטיסטיקה'], ['settings', 'הגדרות והודעה'], ['blocks', 'חסומים'], ['log', 'יומן'],
   ];
 
   function render() {
     host.textContent = '';
-    host.append(h('div', { class: 'fla-tabs' }, SECTIONS.map(([id, label]) =>
-      h('button', { class: section === id ? 'on' : '', text: label, onclick: () => { section = id; sel.clear(); render(); } }))));
+    const tabs = h('div', { class: 'fla-tabs' }, SECTIONS.map(([id, label]) =>
+      h('button', { class: section === id ? 'on' : '', 'data-s': id, text: label, onclick: () => { section = id; sel.clear(); openThread = null; render(); } })));
+    host.append(tabs);
+    // how many support messages wait for an answer, on the tab itself
+    call('/api/admin/threads').then(r => {
+      const b = tabs.querySelector('[data-s=inbox]');
+      if (b && r.status === 200 && r.unread) b.append(h('span', { class: 'fla-dot', text: String(r.unread) }));
+    });
     const body = h('div', { class: 'fla-body' });
     host.append(body);
-    ({ pending: items, approved: items, reported: items, rejected: items, stats, settings, blocks, log })[section](body);
+    ({ inbox, pending: items, approved: items, reported: items, rejected: items, stats, settings, blocks, log })[section](body);
+  }
+
+  // ---------- support inbox ----------
+  let openThread = null, inboxStatus = 'open';
+  const DIAG = { camOk: 'מצלמה', micOk: 'מיקרופון', obsInstalled: 'OBS מותקן', obsConnected: 'OBS מחובר', virtualCam: 'מצלמה וירטואלית', cableInstalled: 'VB-Cable', outIsCable: 'קול ל-CABLE' };
+  const diagLine = d => Object.entries(DIAG).filter(([k]) => k in d).map(([k, l]) => `${d[k] ? '✓' : '✗'} ${l}`).join('  ')
+    + (d.camErr ? `  · שגיאת מצלמה: ${d.camErr}` : '') + (d.obsErr ? `  · OBS: ${d.obsErr}` : '') + (d.app ? `  · גרסה ${d.app}` : '');
+  async function inbox(body) {
+    if (openThread) return thread(body, openThread);
+    body.append(h('div', { class: 'fla-bar' },
+      h('select', { onchange: e => { inboxStatus = e.target.value; render(); } },
+        [['open', 'פתוחות'], ['closed', 'סגורות']].map(([v, l]) => h('option', { value: v, text: l, selected: inboxStatus === v ? 'selected' : null }))),
+      h('button', { text: '↻ רענון', onclick: render })));
+    const r = await call('/api/admin/threads?status=' + inboxStatus);
+    if (r.status !== 200) { body.append(note(errText(r), 'warn')); return; }
+    if (!r.threads.length) { body.append(note(inboxStatus === 'open' ? 'אין הודעות 🎉' : 'אין שיחות סגורות.')); return; }
+    for (const t of r.threads) body.append(h('div', { class: 'fla-card fla-click' + (t.unread_admin ? ' unread' : ''), onclick: () => { openThread = t.k; render(); } },
+      h('div', { class: 'fla-head' }, h('b', { text: t.nick || 'אנונימי' }), t.unread_admin ? h('span', { class: 'fla-dot', text: String(t.unread_admin) }) : null,
+        h('small', { class: 'fla-note', text: when(t.updated) })),
+      h('div', { class: 'fla-preview', text: (t.lastWho === 'admin' ? 'אתה: ' : '') + (t.last || '') }),
+      h('small', { class: 'fla-note', text: diagLine(t.diag || {}) })));
+  }
+  async function thread(body, k) {
+    body.append(h('div', { class: 'fla-bar' }, h('button', { text: '→ לכל ההודעות', onclick: () => { openThread = null; render(); } })));
+    const r = await call('/api/admin/thread/' + k);
+    if (r.status !== 200) { body.append(note(errText(r), 'warn')); return; }
+    const th = r.thread;
+    body.append(h('div', { class: 'fla-card' }, h('b', { text: th.nick || 'אנונימי' }), h('div', { class: 'fla-note', text: 'מצב המחשב שלו: ' + (diagLine(th.diag || {}) || 'לא ידוע') })));
+    const log = h('div', { class: 'fla-chat' }, r.msgs.map(m => h('div', { class: 'fla-msg ' + m.who }, h('div', { text: m.text }), h('small', { text: when(m.t) }))));
+    body.append(log);
+    const box = h('textarea', { rows: 3, maxlength: 2000, placeholder: 'התשובה שלך (הוא יראה אותה באפליקציה)' });
+    const msg = h('small', { class: 'fla-note' });
+    const act = async (a, ask) => { if (ask && !confirm(ask)) return; const x = await call(`/api/admin/thread/${k}/${a}`, 'POST'); if (x.status !== 200) return alert(errText(x)); openThread = null; render(); };
+    body.append(box, h('div', { class: 'fla-btns' },
+      h('button', { class: 'ok', text: 'שלח', onclick: async () => {
+        if (!box.value.trim()) return;
+        const x = await call(`/api/admin/thread/${k}/reply`, 'POST', { text: box.value });
+        if (x.status !== 200) { msg.textContent = errText(x); return; }
+        render();
+      } }),
+      th.status === 'open' ? h('button', { text: '✓ סגור שיחה', onclick: () => act('close') }) : h('button', { text: 'פתח מחדש', onclick: () => act('reopen') }),
+      h('button', { class: 'no', text: '⛔ חסום', onclick: () => act('block', 'לחסום אותו? ההודעות שלו (וגם שיתופים לחנות) ייעלמו בשקט.') }), msg));
+    log.scrollTop = log.scrollHeight;
   }
 
   // ---------- item lists ----------
@@ -137,6 +186,7 @@
       tile('הורדות של האפליקציה', r.downloads ? r.downloads.total : '—', r.downloads ? r.downloads.releases.slice(0, 3).map(x => `${x.tag}: ${x.n}`).join(' · ') : 'GitHub לא ענה'),
       tile('בחנות', n('approved'), `${n('approved', 'effect')} אפקטים · ${n('approved', 'lag')} לאגים`),
       tile('ממתינים', n('pending')),
+      tile('הודעות שלא נקראו', r.chat ? r.chat.unread : 0, r.chat ? `${r.chat.threads} שיחות פתוחות` : ''),
       tile('נדחו', n('rejected')),
       tile('לייקים', r.likes),
       tile('מומלצים', r.featured),
@@ -217,7 +267,7 @@
 
   // ---------- log ----------
   const ACT = { approve: 'אישר', reject: 'דחה', delete: 'מחק', unpublish: 'הוריד מהחנות', feature: 'סימן מומלץ', unfeature: 'ביטל מומלץ', clearReports: 'ניקה דיווחים',
-    block: 'חסם שולח', unblock: 'ביטל חסימה', edit: 'ערך', config: 'שינה הגדרות', autoHide: 'הוסתר אוטומטית (דיווחים)', 'bulk:approve': 'אישר כמה', 'bulk:reject': 'דחה כמה', 'bulk:delete': 'מחק כמה' };
+    block: 'חסם שולח', unblock: 'ביטל חסימה', reply: 'ענה להודעה', 'chat:close': 'סגר שיחה', 'chat:reopen': 'פתח שיחה', 'chat:block': 'חסם מהצ\'אט', edit: 'ערך', config: 'שינה הגדרות', autoHide: 'הוסתר אוטומטית (דיווחים)', 'bulk:approve': 'אישר כמה', 'bulk:reject': 'דחה כמה', 'bulk:delete': 'מחק כמה' };
   async function log(body) {
     const r = await call('/api/admin/log');
     if (r.status !== 200) { body.append(note(errText(r), 'warn')); return; }

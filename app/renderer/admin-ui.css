@@ -37,3 +37,13 @@
 .fla-col span,.fla-col small{font-size:10px;color:var(--mute)}
 .fla-line{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:7px 0;border-bottom:1px solid var(--line)}
 .fla-line button{margin-inline-start:auto}
+.fla-dot{display:inline-block;min-width:18px;padding:0 5px;margin-inline-start:5px;border-radius:999px;background:var(--accent);color:#fff;font-size:11px;font-weight:700;text-align:center;line-height:18px}
+.fla-click{cursor:pointer}
+.fla-click:hover{border-color:var(--mute)}
+.fla-card.unread{border-color:var(--accent)}
+.fla-preview{margin:4px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fla-chat{display:flex;flex-direction:column;gap:6px;max-height:50vh;overflow:auto;margin:8px 0;padding:4px}
+.fla-msg{max-width:85%;padding:7px 10px;border-radius:12px;background:var(--card);border:1px solid var(--line);white-space:pre-wrap;word-break:break-word}
+.fla-msg small{display:block;color:var(--mute);font-size:10.5px;margin-top:2px}
+.fla-msg.user{align-self:flex-start}
+.fla-msg.admin{align-self:flex-end;background:#1d3324;border-color:#2f5a3c}

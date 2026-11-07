@@ -178,5 +178,53 @@ ok('action log records what happened', r.status === 200 && ['block', 'feature', 
 ok('public items never show sender hashes', !JSON.stringify((await req('/api/items?kind=effect')).data).match(/sender|ipk|reports/));
 await req('/api/admin/config', { method: 'POST', body: { announce: null }, ...A });
 
+// ----- help: chat with the admin (0.4) -----
+const me = crypto.randomUUID(), meIp = rnd();
+ok('chat needs an install id', (await req('/api/chat/send', { method: 'POST', body: { text: 'hi' }, ip: meIp })).status === 400);
+ok('empty message refused', (await req('/api/chat/send', { method: 'POST', body: { inst: me, text: '   ' }, ip: meIp })).status === 400);
+r = await req('/api/chat/send', { method: 'POST', body: { inst: me, text: 'זום מראה מסך שחור <b>עזרה</b>', nick: 'דני', diag: { obsInstalled: true, virtualCam: false, evil: '<script>', camErr: 'x'.repeat(500) } }, ip: meIp });
+ok('user sends a message', r.status === 200 && r.data.ok);
+r = await req('/api/admin/threads', A);
+const th = r.data.threads && r.data.threads.find(t => t.nick === 'דני');
+ok('admin sees the thread with unread count', r.status === 200 && th && th.unread_admin === 1 && r.data.unread >= 1, JSON.stringify(r.data).slice(0, 300));
+ok('stored text has no markup', th && !th.last.includes('<') && th.last.includes('עזרה'), th && th.last);
+ok('diag kept clean and short', th && th.diag.obsInstalled === true && th.diag.virtualCam === false && !('evil' in th.diag) && th.diag.camErr.length <= 80, th && JSON.stringify(th.diag));
+ok('thread key is a hash, not the install id', th && /^[0-9a-f]{32}$/.test(th.k) && !JSON.stringify(r.data).includes(me));
+ok('threads need the key', (await req('/api/admin/threads', { ip: '10.1.1.9' })).status === 401);
+r = await req(`/api/admin/thread/${th.k}`, A);
+ok('admin opens the thread', r.status === 200 && r.data.msgs.length === 1 && r.data.msgs[0].who === 'user');
+ok('opening marks it read', (await req('/api/admin/threads', A)).data.threads.find(t => t.k === th.k).unread_admin === 0);
+ok('admin replies', (await req(`/api/admin/thread/${th.k}/reply`, { method: 'POST', body: { text: 'תלחץ על "חבר את OBS אוטומטית"' }, ...A })).status === 200);
+r = await req('/api/chat/thread', { method: 'POST', body: { inst: me }, ip: meIp });
+ok('user gets the reply', r.status === 200 && r.data.msgs.length === 2 && r.data.msgs[1].who === 'admin', JSON.stringify(r.data));
+r = await req('/api/chat/thread', { method: 'POST', body: { inst: crypto.randomUUID() }, ip: meIp });
+ok('another install sees nothing', r.status === 200 && r.data.msgs.length === 0);
+ok('bad thread key refused', (await req(`/api/admin/thread/${encodeURIComponent("' OR 1=1")}`, A)).status === 404);
+ok('close thread', (await req(`/api/admin/thread/${th.k}/close`, { method: 'POST', ...A })).status === 200
+  && !(await req('/api/admin/threads', A)).data.threads.some(t => t.k === th.k));
+await req('/api/chat/send', { method: 'POST', body: { inst: me, text: 'עוד שאלה' }, ip: meIp });
+ok('new message reopens it', (await req('/api/admin/threads', A)).data.threads.some(t => t.k === th.k && t.unread_admin === 1));
+ok('block from chat', (await req(`/api/admin/thread/${th.k}/block`, { method: 'POST', ...A })).status === 200);
+r = await req('/api/chat/send', { method: 'POST', body: { inst: me, text: 'spam spam' }, ip: rnd() });
+ok('blocked user looks sent but nothing arrives', r.status === 200
+  && !(await req('/api/admin/threads', A)).data.threads.some(t => t.k === th.k));
+r = await req('/api/submit', { method: 'POST', body: { ...effect('from blocked chat user'), inst: me }, ip: rnd() });
+ok('chat block also blocks sharing', r.status === 201 && !(await req('/api/admin/pending', A)).data.items.some(i => i.id === r.data.id));
+codes = [];
+const chatIp = rnd(), chatter = crypto.randomUUID();
+for (let i = 0; i < 21; i++) codes.push((await req('/api/chat/send', { method: 'POST', body: { inst: chatter, text: 'm' + i }, ip: chatIp })).status);
+ok('21st message in a day is refused', codes[19] === 200 && codes[20] === 429, codes.slice(18).join());
+ok('stats count support messages', typeof (await req('/api/admin/stats', A)).data.chat.unread === 'number');
+
+// ----- help: the AI helper -----
+ok('ai refuses a history not ending with the user', (await req('/api/ai', { method: 'POST', body: { messages: [{ role: 'assistant', content: 'x' }] }, ip: rnd() })).status === 400);
+ok('ai refuses junk', (await req('/api/ai', { method: 'POST', body: { messages: 'hi' }, ip: rnd() })).status === 400);
+if (!process.env.SKIP_AI) {
+  r = await req('/api/ai', { method: 'POST', body: { lang: 'he', diag: { obsInstalled: true, obsConnected: false, virtualCam: false, cableInstalled: true }, messages: [{ role: 'user', content: 'בזום רואים מסך שחור, מה לעשות?' }] }, ip: rnd() });
+  ok('ai answers in Hebrew', r.status === 200 && /[֐-׿]/.test(r.data.reply || ''), JSON.stringify(r.data).slice(0, 300));
+  ok('ai suggests only known actions', Array.isArray(r.data.actions) && r.data.actions.every(a => ['obs-install', 'obs-connect', 'cable-install', 'audio-fix', 'devices', 'zoom-help', 'human'].includes(a)), JSON.stringify(r.data.actions));
+  console.log('      AI said: ' + (r.data.reply || '').replace(/\n/g, ' / ') + '  actions=' + JSON.stringify(r.data.actions));
+}
+
 console.log(`\n${pass} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

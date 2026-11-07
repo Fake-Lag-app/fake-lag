@@ -23,7 +23,10 @@ function showTab(name) {
   $$('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
   $$('section').forEach(s => s.classList.toggle('on', s.dataset.page === name));
   window.LagsUI && window.LagsUI.onTab(name);
+  window.FLHelp && window.FLHelp.onTab(name);
+  if (name === 'help' && window.FLSetup) window.FLSetup.refresh();
 }
+window.FLSetupGo = showTab;
 $$('nav button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
 window.fl.onSelftestTab(showTab);
 
@@ -55,7 +58,7 @@ lvl.oninput = () => { $('#lvlV').textContent = Math.round(lvl.value * 100) + '%'
 $('#showCam').onclick = () => { camClosed = false; window.fl.showCam(); renderStatus(); };
 
 window.fl.onState(s => {
-  state = s; camClosed = false; markMode(); renderStatus(); window.LagsUI && window.LagsUI.setState(s);
+  state = s; camClosed = false; markMode(); renderStatus(); window.LagsUI && window.LagsUI.setState(s); window.FLSetup && window.FLSetup.setState(s);
   if (document.activeElement !== lvl) { lvl.value = s.level; $('#lvlV').textContent = Math.round(s.level * 100) + '%'; }
 });
 window.fl.onCamClosed(() => { camClosed = true; renderStatus(); });
@@ -74,8 +77,10 @@ $('#newCode').onclick = async () => showRemote(await window.fl.newRemoteToken())
 // the language on screen right now, compared to settings no matter which message arrives first
 let shownLang = '';
 function syncLang() { if (S.lang && S.lang !== shownLang) { shownLang = S.lang; setLang(S.lang); } }
-async function save(patch) { S = await window.fl.setSettings(patch); applySettings(); syncLang(); window.LagsUI && window.LagsUI.setSettings(S); }
-window.fl.onSettings(s => { S = s; syncLang(); window.LagsUI && window.LagsUI.setSettings(S); });
+async function save(patch) { S = await window.fl.setSettings(patch); applySettings(); syncLang(); window.LagsUI && window.LagsUI.setSettings(S); shareSettings(); }
+window.fl.onSettings(s => { S = s; syncLang(); window.LagsUI && window.LagsUI.setSettings(S); shareSettings(); });
+function shareSettings() { window.FLSetup && window.FLSetup.setSettings(S); window.FLHelp && window.FLHelp.setLang(S.lang || 'he'); }
+window.fl.onObs(o => window.FLSetup && window.FLSetup.setObs(o));
 function applySettings() {
   if (document.activeElement !== $('#name')) $('#name').value = S.name || '';
   $('#photoPrev').hidden = !S.photo; if (S.photo) $('#photoPrev').src = S.photo;
@@ -169,9 +174,10 @@ $('#copyObs').onclick = () => { navigator.clipboard.writeText($('#obsUrl').textC
   S = await window.fl.getSettings();
   window.LagsUI && window.LagsUI.setSettings(S);
   applySettings();
-  if (!S.setupDone) step = 1;
   S.lang = S.lang || 'he'; syncLang();
-  if (!step) showTab('remote');
+  window.FLSetup.mount($('#setupRoot')); window.FLHelp.mount($('#chatRoot')); shareSettings();
+  // first time: the Connect tab, where everything sets itself up
+  showTab(S.setupDone ? 'remote' : 'help');
   connectPreview();
   await loadDevices();
   refreshRemote();
