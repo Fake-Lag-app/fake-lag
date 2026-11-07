@@ -24,6 +24,13 @@
       autoT: 'להפעיל את OBS ברקע כל פעם שפותחים את Fake Lag', officialObs: 'obsproject.com',
       allT: 'להתקין הכל בלחיצה אחת', allD: 'מתקין את OBS ואת VB-Cable מהאתרים הרשמיים, ומחבר הכל. ווינדוס ישאל פעם אחת "לאפשר שינויים?" ← לוחצים "כן".',
       allBtn: 'התקן וחבר הכל', allRunning: 'מתקין… אפשר לחכות פה, זה לוקח 2-5 דקות',
+      introT: 'רגע לפני שמתחילים 👋', introD: 'כדי שזום יראה את הלאג, צריך שתי תוכנות חינמיות. אני מתקין אותן עכשיו בשבילך:',
+      obsWhat: 'מעביר את התמונה לזום', cableWhat: 'מעביר את הקול לזום',
+      introSafe: 'שתיהן מהאתרים הרשמיים שלהן, ואני בודק שהקבצים באמת חתומים ע"י היוצרים שלהן.',
+      introUac: 'ווינדוס ישאל "לאפשר שינויים?" ← לוחצים "כן". זה לוקח 2-5 דקות.',
+      startIn: 'מתחיל בעוד %s…', startNow: 'התחל עכשיו', later: 'לא עכשיו',
+      installingT: 'מתקין את מה שצריך…',
+      st: { wait: 'בתור', dl: 'מוריד… %s%', ready: 'הורד ✓, מחכה להתקנה', inst: 'מתקין…', done: 'הותקן ✓', have: 'כבר מותקן ✓', fail: 'לא הותקן' },
       p: { 'download-obs': 'מוריד את OBS', 'download-cable': 'מוריד את VB-Cable', install: 'ווינדוס שואל "לאפשר שינויים?" ← לחץ "כן". אחרי זה ההתקנה רצה לבד',
            'obs:running': 'מתקין את OBS…', 'cable:running': 'מתקין את VB-Cable… אם קופץ חלון "להתקין את תוכנת ההתקן?" ← לחץ "התקן"', done: 'מחבר הכל…' },
       depsErr: { cancelled: 'לא אישרת את ההתקנה בחלון של ווינדוס. אפשר לנסות שוב.', download: 'ההורדה נכשלה. בדוק אינטרנט ונסה שוב.',
@@ -52,6 +59,13 @@
       autoT: 'Start OBS in the background whenever Fake Lag opens', officialObs: 'obsproject.com',
       allT: 'Install everything in one click', allD: 'Installs OBS and VB-Cable from their official sites and connects it all. Windows asks once “Allow changes?” → press “Yes”.',
       allBtn: 'Install & connect everything', allRunning: 'Installing… you can wait here, it takes 2-5 minutes',
+      introT: 'One moment before we start 👋', introD: 'For Zoom to see the lag you need two free programs. I’m installing them for you now:',
+      obsWhat: 'carries the picture to Zoom', cableWhat: 'carries the sound to Zoom',
+      introSafe: 'Both come from their official sites, and I check the files are really signed by their makers.',
+      introUac: 'Windows will ask “Allow changes?” → press “Yes”. It takes 2-5 minutes.',
+      startIn: 'Starting in %s…', startNow: 'Start now', later: 'Not now',
+      installingT: 'Installing what’s needed…',
+      st: { wait: 'Waiting', dl: 'Downloading… %s%', ready: 'Downloaded ✓, waiting to install', inst: 'Installing…', done: 'Installed ✓', have: 'Already installed ✓', fail: 'Not installed' },
       p: { 'download-obs': 'Downloading OBS', 'download-cable': 'Downloading VB-Cable', install: 'Windows asks “Allow changes?” → press “Yes”. Then it installs by itself',
            'obs:running': 'Installing OBS…', 'cable:running': 'Installing VB-Cable… if a “Install this device software?” window pops up → press “Install”', done: 'Connecting everything…' },
       depsErr: { cancelled: 'The Windows permission window was not approved. You can try again.', download: 'Download failed. Check the internet and try again.',
@@ -60,7 +74,8 @@
     },
   };
   let S = {}, state = {}, lang = 'he', obs = null, devices = { cable: false, cableOut: null }, busy = {}, msg = {}, root = null, prog = null, scanned = false;
-  window.fl.onDeps(p => { prog = p; render(); });
+  let intro = null, want = { obs: false, cable: false }, instStatus = '';
+  window.fl.onDeps(p => { prog = p; if (p.status) instStatus = p.status; render(); });
   const t = k => (TX[lang] || TX.he)[k] ?? k;
 
   function h(tag, attrs, ...kids) {
@@ -88,10 +103,24 @@
     await scanDevices();
     render();
     // the first time the app opens after installing: set everything up without being asked
-    if (!S.setupDone && !S.depsAuto && obs && (!obs.installed || !devices.cable) && scanned) {
+    if (!S.setupDone && !S.depsAuto && !intro && obs && (!obs.installed || !devices.cable) && scanned) {
       await window.fl.setSettings({ depsAuto: true });
-      act('all');
+      announce();
     }
+  }
+  // say what is about to be installed and why, then start by itself after a few seconds
+  function announce() {
+    want = { obs: !(obs && obs.installed), cable: !devices.cable };
+    intro = { left: 6, timer: null };
+    intro.timer = setInterval(() => {
+      if (!intro) return;
+      intro.left--;
+      if (intro.left <= 0) startNow(); else render();
+    }, 1000);
+    render();
+  }
+  function startNow() { if (intro) clearInterval(intro.timer); intro = null; act('all'); }
+  function notNow() { if (intro) clearInterval(intro.timer); intro = null; render();
   }
   // VB-Cable shows up a few seconds after its installer ends; wait for it, then send the sound there
   async function waitCable(ms) {
@@ -117,6 +146,7 @@
     try {
       if (name === 'all' || name === 'obs-install' || name === 'cable-install') {
         const wantObs = name !== 'cable-install' && !(obs && obs.installed), wantCable = name !== 'obs-install' && !devices.cable;
+        want = { obs: wantObs, cable: wantCable }; instStatus = '';
         prog = null;
         const r = await window.fl.depsInstall(wantObs, wantCable);
         prog = null;
@@ -138,6 +168,24 @@
     await refresh();
   }
 
+  function itemState(key) {
+    const T = t('st'), done = { icon: '✓', cls: 'ok', text: T.done };
+    if (!want[key]) return { icon: '✓', cls: 'ok', text: T.have };
+    if (!busy.all) return intro ? { icon: '…', cls: 'wait', text: T.wait } : { icon: '✗', cls: 'bad', text: T.fail };
+    const step = prog && prog.step, pct = prog && prog.pct || 0, s = instStatus;
+    const order = ['download-obs', 'download-cable', 'install'];
+    const dlStep = key === 'obs' ? 'download-obs' : 'download-cable';
+    if (step === dlStep) return { icon: '↓', cls: 'wait', text: T.dl.replace('%s', pct) };
+    if (step === 'install') {
+      if (s.startsWith(key + ':running')) return { icon: '…', cls: 'wait', text: T.inst };
+      if (s.startsWith(key + ':exit') || s === 'done' || (key === 'obs' && s.startsWith('cable:'))) return done;
+      return { icon: '·', cls: 'wait', text: T.ready };
+    }
+    if (order.indexOf(step) > order.indexOf(dlStep)) return { icon: '·', cls: 'wait', text: T.ready };
+    if (!step || order.indexOf(step) < order.indexOf(dlStep)) return { icon: '·', cls: 'wait', text: T.wait };
+    return done;
+  }
+
   // ---------- render ----------
   function row(ok, title, desc, ...extra) {
     const icon = ok === true ? '✓' : ok === 'wait' ? '…' : ok === 'off' ? '·' : '✗';
@@ -155,11 +203,28 @@
 
     // everything in one click, while OBS or VB-Cable is missing
     const missing = obs && (!obs.installed || (scanned && !devices.cable));
-    if (missing || busy.all || msg.all) {
+    const itemLine = (key, name, what) => {
+      const st = itemState(key);
+      return h('div', { class: 'sitem ' + st.cls }, h('span', { class: 'sicon', text: st.icon }),
+        h('div', {}, h('b', { text: name }), h('small', { text: ' · ' + what })), h('span', { class: 'sst', text: st.text }));
+    };
+    if (intro) {
+      root.append(h('div', { class: 'sall intro' },
+        h('b', { class: 'big', text: t('introT') }), h('small', { text: t('introD') }),
+        itemLine('obs', 'OBS Studio', t('obsWhat')), itemLine('cable', 'VB-Cable', t('cableWhat')),
+        h('small', { text: '🔒 ' + t('introSafe') }), h('small', { text: '🪟 ' + t('introUac') }),
+        h('div', { class: 'sbtns' }, btn(t('startNow') + ' (' + intro.left + ')', startNow), btn(t('later'), notNow, 'ghost'))));
+    } else if (busy.all) {
+      root.append(h('div', { class: 'sall run' },
+        h('b', { class: 'big', text: t('installingT') }),
+        itemLine('obs', 'OBS Studio', t('obsWhat')), itemLine('cable', 'VB-Cable', t('cableWhat')),
+        prog && prog.step === 'install' && !instStatus ? h('small', { class: 'warn', text: '🪟 ' + t('p').install }) : null,
+        instStatus === 'cable:running' ? h('small', { class: 'warn', text: t('p')['cable:running'] }) : null,
+        prog && prog.pct && prog.step !== 'install' ? h('div', { class: 'sbar' }, h('i', { style: `width:${prog.pct}%` })) : null));
+    } else if (missing || msg.all) {
       const p = prog && (prog.status && t('p')[prog.status] ? t('p')[prog.status] : t('p')[prog.step] ? t('p')[prog.step] + (prog.pct ? ` ${prog.pct}%` : '') : '');
       root.append(h('div', { class: 'sall' + (busy.all ? ' run' : '') },
         h('b', { text: t('allT') }), h('small', { text: busy.all ? (p || t('allRunning')) : t('allD') }),
-        busy.all && prog && prog.pct ? h('div', { class: 'sbar' }, h('i', { style: `width:${prog.pct}%` })) : null,
         msg.all ? h('small', { class: 'warn', text: msg.all.startsWith('E:') ? (t('depsErr')[msg.all.slice(2)] || msg.all.slice(2)) : t(msg.all) }) : null,
         !busy.all && missing ? h('div', { class: 'sbtns' }, btn(t('allBtn'), () => act('all'))) : null));
     }
@@ -220,6 +285,15 @@
       if (before !== JSON.stringify([s.camOk, s.micOk, s.outName, s.camErr])) render(); },
     setObs(o) { obs = o; render(); },
     refresh, act, diag,
+    // self-test only: show the announcement / the install progress without installing anything
+    _preview(kind, p, status) {
+      if (intro && intro.timer) clearInterval(intro.timer);
+      want = { obs: true, cable: true };
+      if (kind === 'intro') { intro = { left: 6, timer: null }; busy.all = false; }
+      else { intro = null; busy.all = true; prog = p; instStatus = status || ''; }
+      render();
+    },
+    _clear() { intro = null; busy.all = false; prog = null; instStatus = ''; render(); },
   };
   navigator.mediaDevices.addEventListener('devicechange', () => scanDevices().then(render));
 })();

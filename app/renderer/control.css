@@ -175,3 +175,14 @@ nav button.dot::after{content:'';display:inline-block;width:8px;height:8px;borde
 .sbar{height:6px;border-radius:3px;background:#0d0f13;overflow:hidden}
 .sbar i{display:block;height:100%;background:var(--warn);transition:width .4s}
 .check{display:flex;gap:8px;align-items:center;cursor:pointer}
+
+.sall .big{font-size:17px}
+.sall.intro{border-color:var(--ok)}
+.sitem{display:flex;gap:10px;align-items:center;background:rgba(0,0,0,.25);border-radius:10px;padding:8px 10px}
+.sitem>div{flex:1;min-width:0}
+.sitem small{opacity:.75}
+.sitem .sicon{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;background:#2a2e37;color:var(--mute)}
+.sitem.ok .sicon{background:var(--ok);color:#06210f}
+.sitem.wait .sicon{background:var(--warn);color:#2a1a00}
+.sitem.bad .sicon{background:var(--accent);color:#fff}
+.sst{font-size:12.5px;white-space:nowrap}

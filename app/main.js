@@ -424,6 +424,15 @@ async function selfTest() {
     fs.writeFileSync(path.join(out, 'ctl-chat-answer.png'), (await ctl.webContents.capturePage()).toPNG());
     // the one-click install, dry (downloads VB-Cable, checks its signature, runs nothing)
     const deps = await ctl.webContents.executeJavaScript(`fl.depsInstall(false, true)`);
+    // what a first launch looks like: the announcement, then progress for each program
+    ctl.webContents.send('selftestTab', 'help'); await wait(800);
+    for (const [name, js] of [['intro', "window.FLSetup._preview('intro')"],
+      ['dl', "window.FLSetup._preview('run', { step: 'download-obs', pct: 63 })"],
+      ['inst', "window.FLSetup._preview('run', { step: 'install' }, 'cable:running')"]]) {
+      await ctl.webContents.executeJavaScript(js + '; window.scrollTo(0, 0)'); await wait(400);
+      fs.writeFileSync(path.join(out, `ctl-first-${name}.png`), (await ctl.webContents.capturePage()).toPNG());
+    }
+    await ctl.webContents.executeJavaScript('window.FLSetup._clear()');
     log.push({ setup: { rows, diag, chat, deps } });
   } catch (e) { log.push({ setupError: String(e) }); }
   ctl.webContents.send('selftestTab', 'lags'); await wait(1200);
