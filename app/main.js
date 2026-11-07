@@ -3,7 +3,7 @@ const { app, BrowserWindow, ipcMain, globalShortcut, session, shell } = require(
 const http = require('http'), os = require('os'), fs = require('fs'), path = require('path'), crypto = require('crypto');
 const QR = require('qrcode');
 const { createObs } = require('./obs.js');
-const Cable = require('./cable.js');
+const Deps = require('./deps.js');
 
 const SELFTEST = process.argv.includes('--selftest');
 const PORT = 5174;
@@ -20,7 +20,7 @@ const settingsFile = () => path.join(app.getPath('userData'), 'settings.json');
 const Schema = require('./renderer/schema.js');
 // presets: the user's own lags and effects · slots: what Ctrl+Alt+Shift+7 / 8 play
 const DEFAULTS = { lang: 'he', name: '', photo: '', camId: '', micId: '', outId: '', level: 0.4, setupDone: false,
-  presets: [], slots: { 7: '', 8: '' }, nick: '', token: '', obsAuto: true, obsReady: false, chatUsed: false, zoomDone: false };
+  presets: [], slots: { 7: '', 8: '' }, nick: '', token: '', obsAuto: true, obsReady: false, chatUsed: false, zoomDone: false, depsAuto: false, announceOff: false };
 // never settable from a window: the phone code, the admin key, the store address
 const PRIVATE = ['token', 'adminKey', 'storeUrl', 'inst', 'obsPass'];
 const STORE_URL_DEFAULT = 'https://fake-lag-store.pages.dev';
@@ -184,6 +184,7 @@ ipcMain.handle('admin:call', async (e, { path: p, method, body } = {}) => {
 // the admin's announcement and whether sharing is open, checked now and then
 let announce = { announce: null, submitOpen: true };
 async function checkAnnounce() {
+  if (S.announceOff) return;   // the user turned off the automatic check (Settings → Privacy)
   const r = await storeFetch('/api/announce');
   if (!r.ok) return;
   const a = r.announce && typeof r.announce === 'object' ? r.announce : null;
@@ -205,7 +206,16 @@ ipcMain.handle('obs:start', async (e, { restart } = {}) => {
   return st;
 });
 ipcMain.handle('obs:install', e => fromCtl(e) ? obs.install() : null);
-ipcMain.handle('cable:install', e => fromCtl(e) ? Cable.install(m => console.log('[cable]', m)) : null);
+// OBS and/or VB-Cable from the official sources, one Windows permission prompt for both
+let depsBusy = false;
+ipcMain.handle('deps:install', async (e, { obs: wantObs, cable: wantCable } = {}) => {
+  if (!fromCtl(e) || depsBusy) return { ok: false, error: 'busy' };
+  depsBusy = true;
+  try {
+    return await Deps.installAll({ obs: !!wantObs, cable: !!wantCable, dry: SELFTEST,
+      onProgress: p => alive(ctl) && ctl.webContents.send('deps', p), log: m => console.log('[deps]', m) });
+  } finally { depsBusy = false; }
+});
 ipcMain.handle('app:info', () => ({ version: app.getVersion(), os: `Windows ${os.release()}` }));
 
 // ---------- help: the AI helper and messages to the admin ----------
@@ -412,7 +422,9 @@ async function selfTest() {
       return { last: msgs[msgs.length - 1].innerText.slice(0, 200), buttons: [...msgs[msgs.length - 1].querySelectorAll('button')].map(b => b.textContent) };
     })()`);
     fs.writeFileSync(path.join(out, 'ctl-chat-answer.png'), (await ctl.webContents.capturePage()).toPNG());
-    log.push({ setup: { rows, diag, chat } });
+    // the one-click install, dry (downloads VB-Cable, checks its signature, runs nothing)
+    const deps = await ctl.webContents.executeJavaScript(`fl.depsInstall(false, true)`);
+    log.push({ setup: { rows, diag, chat, deps } });
   } catch (e) { log.push({ setupError: String(e) }); }
   ctl.webContents.send('selftestTab', 'lags'); await wait(1200);
   // the editor: open a new effect, save it, put it on slot 7 and play it from the shortcut path
@@ -511,6 +523,7 @@ app.whenReady().then(() => {
     S.setupDone = true; S.name = 'Yonatan'; S.fakeCam = true;
     // optional: run the store flow against a local test server
     if (process.env.FL_TEST_STORE) { S.storeUrl = process.env.FL_TEST_STORE; S.adminKey = process.env.FL_TEST_ADMIN || ''; }
+    else { delete S.storeUrl; delete S.adminKey; }   // a test server from an earlier run is not remembered
   }
   // camera and mic only for our own pages, nothing else
   const ownFrame = wc => !!wc && isOwnPage(wc.getURL());
@@ -522,7 +535,18 @@ app.whenReady().then(() => {
   if (!SELFTEST || process.env.FL_TEST_STORE) { checkAnnounce(); setInterval(checkAnnounce, 15 * 60 * 1000); }
   // once OBS was set up, bring it up hidden every time the app opens
   if (!SELFTEST && S.obsAuto && S.obsReady) setTimeout(() => obs.start().then(st => alive(ctl) && ctl.webContents.send('obs', st)), 1500);
-  if (SELFTEST) selfTest();
+  if (SELFTEST) {
+    // record why a window goes away during a self-test
+    const dbg = m => { try { fs.appendFileSync(path.join(__dirname, 'selftest', 'debug.txt'), new Date().toISOString() + ' ' + m + '\n'); } catch {} };
+    try { fs.mkdirSync(path.join(__dirname, 'selftest'), { recursive: true }); fs.writeFileSync(path.join(__dirname, 'selftest', 'debug.txt'), ''); } catch {}
+    app.on('render-process-gone', (e, wc, d) => dbg(`renderer gone ${wc.getURL().split('/').pop()} ${d.reason} ${d.exitCode}`));
+    app.on('child-process-gone', (e, d) => dbg(`child gone ${d.type} ${d.reason} ${d.exitCode} ${d.name || ''}`));
+    for (const [n, w] of [['cam', cam], ['ctl', ctl]]) w && w.on('closed', () => dbg(n + ' closed'));
+    process.on('uncaughtException', e => dbg('uncaught ' + (e && e.stack || e)));
+    process.on('unhandledRejection', e => dbg('unhandled ' + (e && e.stack || e)));
+    app.on('before-quit', () => dbg('before-quit ' + new Error().stack.split('\n').slice(1, 4).join(' | ')));
+    selfTest().catch(e => dbg('selftest threw ' + (e && e.stack || e)));
+  }
 });
 app.on('will-quit', () => { globalShortcut.unregisterAll(); obs.shutdown(); });
 app.on('window-all-closed', () => app.quit());

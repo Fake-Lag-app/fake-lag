@@ -188,7 +188,12 @@
   <p class="note" id="verify"></p>
 </div></section>
 
-<section><div class="wrap">
+<section id="privacy"><div class="wrap">
+  <h2 data-t="privT"></h2><p class="sub" data-t="privS"></p>
+  <div class="card"><ul class="list yes" id="priv"></ul><p class="note" data-t="privNote"></p></div>
+</div></section>
+
+<section class="alt"><div class="wrap">
   <h2 data-t="needT"></h2><p class="sub" data-t="needS"></p>
   <div class="need">
     <div class="card"><b>Windows 10 / 11</b><p data-t="n1"></p></div>
@@ -209,7 +214,7 @@
 
 <footer><div class="wrap row">
   <span data-t="foot"></span>
-  <span><a href="https://github.com/Fake-Lag-app/fake-lag" rel="noopener" data-t="fCode"></a> · <a href="https://github.com/Fake-Lag-app/fake-lag/actions" rel="noopener" data-t="fBuilds"></a> · <a href="https://github.com/Fake-Lag-app/fake-lag/blob/main/LICENSE" rel="noopener">MIT</a></span>
+  <span><a href="https://github.com/Fake-Lag-app/fake-lag" rel="noopener" data-t="fCode"></a> · <a href="https://github.com/Fake-Lag-app/fake-lag/actions" rel="noopener" data-t="fBuilds"></a> · <a href="https://github.com/Fake-Lag-app/fake-lag/blob/main/LICENSE" rel="noopener">MIT</a> · <a href="#privacy" data-t="fPriv"></a></span>
 </div></footer>
 
 <script>
@@ -238,6 +243,15 @@ const D = {
     cap1: 'השלט: מה המורה רואה, ולחיצה אחת לכל מצב', cap2: 'הלאגים שלך, המובנים, והחנות', cap3: 'עורך: שלבים, שכבות ומחוונים',
     safeT: 'בטוח? הנה בדיוק מה זה עושה', safeS: 'אנחנו יודעים שתוכנה חדשה מגורם לא מוכר נראית חשודה, אז אין פה סודות.',
     doesT: 'מה האפליקציה עושה', doesntT: 'מה היא לא עושה',
+    privT: 'מדיניות פרטיות', privS: 'מה יוצא מהמחשב שלך, מתי, ולאן. בלי אותיות קטנות.',
+    priv: ['התמונה מהמצלמה והקול מהמיקרופון: אף פעם לא יוצאים מהמחשב. הם עוברים רק בתוך המחשב, ל-OBS ול-VB-Cable.',
+      'בדיקת הודעות: מדי פעם האפליקציה בודקת אם יש הודעה מהצוות (למשל גרסה חדשה). לא נשלח שום מידע עליך. אפשר לכבות ב"הגדרות ← פרטיות".',
+      'חנות: רק כשאתה לוחץ "שתף". נשלחים הלאג, הכינוי שבחרת ומספר אקראי של ההתקנה (כדי שאפשר יהיה לחסום ספאם).',
+      'עזרה: רק כשאתה כותב. נשלחים מה שכתבת ומה מחובר אצלך (✓/✗). שיחה עם העוזר (AI של Cloudflare) לא נשמרת. הודעה לבן אדם נשמרת כדי שאפשר יהיה לענות לך.',
+      'התקנת OBS ו-VB-Cable: רק כשאתה לוחץ (או בפתיחה הראשונה). מורידים ישר מהאתרים הרשמיים שלהם.',
+      'השרת לא שומר כתובות IP, רק קוד מוצפן חד-כיווני שמתחלף כל יום, וזה משמש רק נגד ספאם. אין עוגיות, אין מעקב, אין פרסומות ואין חשבון.'],
+    privNote: 'OBS ו-VB-Cable הן תוכנות נפרדות עם מדיניות פרטיות משלהן: obsproject.com, vb-audio.com. השרת של החנות רץ על Cloudflare.',
+    fPriv: 'פרטיות',
     does: ['קוראת את המצלמה והמיקרופון שלך, רק במחשב שלך', 'שולחת את התמונה ל-OBS בכתובת שעובדת רק מהמחשב עצמו', 'שולחת את הקול ל-VB-Cable, ומשם לזום', 'פותחת שלט לטלפון רק ברשת הביתית, עם קוד סודי', 'בחנות: שולחת רק את הלאג ששיתפת, הכינוי שבחרת ומספר אקראי של ההתקנה (כדי שאפשר יהיה לחסום ספאם)', 'בודקת מדי פעם אם יש הודעה חדשה (למשל על גרסה חדשה), בלי לשלוח עליך שום מידע', 'בעזרה: שולחת רק את מה שכתבת ומה מחובר אצלך (✓/✗). שיחה עם העוזר לא נשמרת', 'מתקינה את OBS ו-VB-Cable רק כשאתה לוחץ, מהמקורות הרשמיים (VB-Cable נבדק שהוא חתום ע"י היוצר שלו)'],
     doesnt: ['לא מקליטה ולא שומרת תמונה או קול', 'לא שולחת את המצלמה או הקול לשום שרת', 'לא מתקינה דרייברים (VB-Cable מותקן בנפרד מהאתר הרשמי שלו)', 'לא רצה ברקע אחרי שסוגרים אותה', 'לא אוספת מידע, ואין חשבון'],
     verify: 'לא חייבים להאמין לנו: <a href="REPO">כל הקוד פתוח</a>, וקובץ ההתקנה <a href="REPO/actions">נבנה אוטומטית על ידי GitHub</a> מהקוד הזה, בפומבי.',
@@ -285,6 +299,15 @@ const D = {
     cap1: 'The remote: what the teacher sees, one click per mode', cap2: 'Your lags, the built-ins, and the store', cap3: 'Editor: steps, layers and sliders',
     safeT: 'Is it safe? Here’s exactly what it does', safeS: 'We know a new app from someone you don’t know looks suspicious, so there are no secrets here.',
     doesT: 'What the app does', doesntT: 'What it doesn’t do',
+    privT: 'Privacy policy', privS: 'What leaves your computer, when, and where to. No fine print.',
+    priv: ['Your camera picture and microphone sound: never leave your computer. They only travel inside it, to OBS and VB-Cable.',
+      'Notice check: now and then the app checks for a notice from the team (like a new version). Nothing about you is sent. Turn it off in Settings → Privacy.',
+      'Store: only when you press “Share”. The lag, your chosen nickname and a random install number (so spam can be blocked) are sent.',
+      'Help: only when you write. What you wrote and what’s connected (✓/✗) are sent. Helper chats (Cloudflare AI) aren’t saved. A message to a person is kept so you can be answered.',
+      'Installing OBS and VB-Cable: only when you press (or on first launch). Downloaded straight from their official sites.',
+      'The server doesn’t keep IP addresses, only a one-way scrambled code that changes daily, used only against spam. No cookies, no tracking, no ads, no account.'],
+    privNote: 'OBS and VB-Cable are separate programs with their own privacy policies: obsproject.com, vb-audio.com. The store server runs on Cloudflare.',
+    fPriv: 'Privacy',
     does: ['Reads your camera and mic, only on your computer', 'Sends the picture to OBS on an address that only works on this computer', 'Sends the sound to VB-Cable, and from there to Zoom', 'Opens a phone remote only on your home network, with a secret code', 'In the store: sends only the lag you shared, your nickname and a random install number (so spam can be blocked)', 'Checks now and then for a new notice (like a new version), without sending anything about you', 'In Help: sends only what you wrote and what’s connected (✓/✗). Helper chats aren’t saved', 'Installs OBS and VB-Cable only when you click, from the official sources (VB-Cable is checked to be signed by its maker)'],
     doesnt: ['Doesn’t record or save picture or sound', 'Doesn’t send your camera or voice to any server', 'Doesn’t install drivers (VB-Cable is installed separately, from its official site)', 'Doesn’t run in the background after you close it', 'Doesn’t collect data, and there’s no account'],
     verify: 'You don’t have to trust us: <a href="REPO">all the code is open</a>, and the installer is <a href="REPO/actions">built automatically by GitHub</a> from that code, in public.',
@@ -326,6 +349,7 @@ function render() {
     const isNew = k === 'NEW';
     return `<div class="mode${isNew ? ' new' : ''}"><b>${esc(b)}${isNew ? `<span class="tag">${esc(d.newTag)}</span>` : ''}</b><span>${esc(s)}</span>${k && !isNew ? `<br><kbd>${esc(k)}</kbd>` : ''}</div>`;
   }).join('');
+  document.getElementById('priv').innerHTML = d.priv.map(x => `<li>${icon('check')}<span>${esc(x)}</span></li>`).join('');
   document.getElementById('does').innerHTML = d.does.map(x => `<li>${icon('check')}<span>${esc(x)}</span></li>`).join('');
   document.getElementById('doesnt').innerHTML = d.doesnt.map(x => `<li>${icon('x')}<span>${esc(x)}</span></li>`).join('');
   document.getElementById('verify').innerHTML = d.verify.replaceAll('REPO', REPO);

@@ -81,7 +81,9 @@ async function save(patch) { S = await window.fl.setSettings(patch); applySettin
 window.fl.onSettings(s => { S = s; syncLang(); window.LagsUI && window.LagsUI.setSettings(S); shareSettings(); });
 function shareSettings() { window.FLSetup && window.FLSetup.setSettings(S); window.FLHelp && window.FLHelp.setLang(S.lang || 'he'); }
 window.fl.onObs(o => window.FLSetup && window.FLSetup.setObs(o));
+$('#announceOn').onchange = e => save({ announceOff: !e.target.checked });
 function applySettings() {
+  $('#announceOn').checked = !S.announceOff;
   if (document.activeElement !== $('#name')) $('#name').value = S.name || '';
   $('#photoPrev').hidden = !S.photo; if (S.photo) $('#photoPrev').src = S.photo;
   $('#photoClear').hidden = !S.photo;
