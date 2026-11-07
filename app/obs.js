@@ -39,6 +39,32 @@ async function install() {
   return exe ? { ok: true } : { ok: false, error: 'install-failed', detail: (r.out + r.err).slice(-300) };
 }
 
+// ---------- a fresh OBS: skip its first-run wizard ----------
+// On its very first launch OBS pops an English "Auto-Configuration Wizard". If OBS has never run here
+// (no settings files yet), write the two values OBS itself writes after that first run.
+async function seedFirstRun(exe) {
+  const dir = path.join(appData(), 'obs-studio');
+  const user = path.join(dir, 'user.ini'), global = path.join(dir, 'global.ini');
+  if (fs.existsSync(user) || fs.existsSync(global)) return false;
+  const v = await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `(Get-Item -LiteralPath '${exe.replace(/'/g, "''")}').VersionInfo.FileVersion`]);
+  const [maj = 0, min = 0, pat = 0] = (v.out.trim().match(/\d+/g) || []).map(Number);
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(user, '[General]\r\nFirstRun=true\r\n');
+  const lines = ['[General]', 'Pre31Migrated=true', 'Pre33.0Migrated=true'];
+  if (maj) lines.push('LastVersion=' + (((maj << 24) | (min << 16) | pat) >>> 0));
+  fs.writeFileSync(global, lines.join('\r\n') + '\r\n');
+  return true;
+}
+
+// OBS leaves a marker in .sentinel while it runs and removes it when it closes properly. A marker left by a
+// forced close (or a power cut) makes the next start stop on a "Safe mode?" question. Only called while OBS is closed.
+function clearStaleMarkers() {
+  const dir = path.join(appData(), 'obs-studio', '.sentinel');
+  let n = 0;
+  try { for (const f of fs.readdirSync(dir)) if (/^run_[0-9a-f-]+$/i.test(f)) { fs.rmSync(path.join(dir, f), { force: true }); n++; } } catch {}
+  return n;
+}
+
 // ---------- obs-websocket settings ----------
 // If the user already uses the remote control, keep theirs. If it is off, turn it on with our own password.
 // OBS reads this file when it starts and rewrites it when it closes, so it is only changed while OBS is closed.
@@ -128,6 +154,8 @@ async function setupScene(c, url) {
   await c.request('SetSceneItemTransform', { sceneName: SCENE, sceneItemId, sceneItemTransform: {
     positionX: 0, positionY: 0, scaleX: 1, scaleY: 1, rotation: 0, alignment: 5, boundsType: 'OBS_BOUNDS_SCALE_INNER', boundsAlignment: 0, boundsWidth: v.baseWidth, boundsHeight: v.baseHeight } });
   await c.request('SetCurrentProgramScene', { sceneName: SCENE });
+  // if OBS loaded the page before the app was ready, it shows an error page and never retries: reload it
+  try { await c.request('PressInputPropertiesButton', { inputName: SOURCE, propertyName: 'refreshnocache' }); } catch {}
   const vc = await c.request('GetVirtualCamStatus');
   if (!vc.outputActive) await c.request('StartVirtualCam');
   return { virtualCam: true, size: `${v.baseWidth}x${v.baseHeight}` };
@@ -182,11 +210,19 @@ function createObs({ getPass, url, log = () => {} }) {
     }
     let ws;
     try { ws = ensureWsConfig(getPass()); } catch (e) { last.err = 'config'; log('obs config ' + e.message); return status(); }
-    if (!running) launch(exe);
+    if (!running) {
+      try { await seedFirstRun(exe); } catch (e) { log('obs seed ' + e.message); }
+      const stale = clearStaleMarkers(); if (stale) log('obs cleared ' + stale + ' stale run markers');
+      launch(exe);
+    }
     try {
       if (conn) conn.close();
       conn = await tryConnect(ws.port, ws.pass, running ? 6000 : 30000);
-      await setupScene(conn, url);
+      // right after it starts OBS can answer "not ready" for a few seconds: try again
+      for (let i = 0; ; i++) {
+        try { await setupScene(conn, url); break; }
+        catch (e) { if (!/not ready/i.test(e.message) || i >= 30) throw e; await wait(1000); }
+      }
     } catch (e) {
       log('obs ' + e.message);
       last.err = e.message === 'bad-password' ? 'bad-password' : 'no-connection';
@@ -195,18 +231,26 @@ function createObs({ getPass, url, log = () => {} }) {
     return status();
   }
 
-  async function closeObs() {
-    await run('taskkill', ['/IM', 'obs64.exe']);
-    for (let i = 0; i < 20 && await isRunning(); i++) await wait(500);
-    if (await isRunning()) await run('taskkill', ['/IM', 'obs64.exe', '/F']);
-    conn = null;
-  }
-
-  // when the app closes: if we started OBS, stop the camera and close it again
-  async function shutdown() {
-    try { if (conn) await conn.request('StopVirtualCam'); } catch {}
+  // a normal close first (OBS cleans up after itself), force only if it doesn't go within ~8 seconds
+  async function closeGently(target) {
+    // with the virtual camera on, OBS answers a close with a hidden "are you sure?": turn it off and wait until it is off
+    if (conn) {
+      try { await conn.request('StopVirtualCam'); } catch {}
+      for (let i = 0; i < 20; i++) { try { if (!(await conn.request('GetVirtualCamStatus')).outputActive) break; } catch { break; } await wait(250); }
+      await wait(500);
+    }
     try { if (conn) conn.close(); } catch {}
-    if (child && child.pid) { try { process.kill(child.pid); } catch {} }
+    conn = null;
+    await run('taskkill', target);
+    for (let i = 0; i < 16 && await isRunning(); i++) { await wait(500); if (i === 6) await run('taskkill', target); }   // ask twice before forcing
+    if (await isRunning()) { log('obs did not close, forcing'); await run('taskkill', [...target, '/F']); }
+  }
+  const closeObs = () => closeGently(['/IM', 'obs64.exe']);
+
+  // when the app closes: if we started OBS, close it again
+  async function shutdown() {
+    if (child && child.pid) await closeGently(['/PID', String(child.pid)]);
+    else { try { if (conn) conn.close(); } catch {} conn = null; }
   }
 
   return { status, start, install, shutdown, closeObs };

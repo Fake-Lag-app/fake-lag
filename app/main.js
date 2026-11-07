@@ -548,5 +548,13 @@ app.whenReady().then(() => {
     selfTest().catch(e => dbg('selftest threw ' + (e && e.stack || e)));
   }
 });
-app.on('will-quit', () => { globalShortcut.unregisterAll(); obs.shutdown(); });
+// close OBS properly before quitting (a forced close makes OBS ask about "safe mode" next time)
+let obsClosed = false;
+app.on('will-quit', e => {
+  globalShortcut.unregisterAll();
+  if (obsClosed) return;
+  e.preventDefault();
+  // app.quit() a second time is ignored once quitting has started, so leave with exit() (cleanup is done by then)
+  Promise.race([obs.shutdown(), new Promise(r => setTimeout(r, 10000))]).finally(() => { obsClosed = true; app.exit(0); });
+});
 app.on('window-all-closed', () => app.quit());
