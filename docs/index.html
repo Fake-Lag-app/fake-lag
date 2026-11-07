@@ -49,8 +49,14 @@
   .btn svg{width:20px;height:20px}
   .btn2{display:inline-flex;align-items:center;gap:8px;color:var(--ink);text-decoration:none;border:1px solid var(--line);padding:14px 20px;border-radius:12px;font-weight:500}
   .btn2 svg{width:18px;height:18px}
-  .meta{font-size:13.5px;color:var(--mute);margin-top:12px}
-  .tile{position:relative;border-radius:var(--radius);overflow:hidden;border:1px solid var(--line);background:#000;aspect-ratio:16/9;box-shadow:0 30px 80px #0006}
+  .btn.mob,.mobnote{display:none}
+ body.phone .btn.dl{display:none}
+ body.phone .btn.mob,body.phone .mobnote{display:inline-flex}
+ body.phone .mobnote{display:block}
+ .btn.mob{border:0;cursor:pointer;font-family:inherit}
+ #hash code{direction:ltr;unicode-bidi:isolate;word-break:break-all;font:12.5px Consolas,monospace}
+ .meta{font-size:13.5px;color:var(--mute);margin-top:12px}
+  .tile{position:relative;border-radius:var(--radius);overflow:hidden;border:1px solid var(--line);background:#000;aspect-ratio:9/16;width:100%;max-width:340px;justify-self:center;box-shadow:0 30px 80px #0006}
   .tile video{width:100%;height:100%;display:block;object-fit:cover}
   .tile .badge{position:absolute;top:12px;inset-inline-start:12px;background:#000b;color:#fff;font-size:13px;padding:4px 10px;border-radius:999px}
 
@@ -143,12 +149,15 @@
       <p class="lead" data-t="lead"></p>
       <div class="cta">
         <a class="btn dl" href="#"><svg><use href="#i-dl"/></svg><span data-t="download"></span></a>
+        <button class="btn mob" type="button"><svg><use href="#i-dl"/></svg><span data-t="mobBtn"></span></button>
         <a class="btn2" href="https://github.com/Fake-Lag-app/fake-lag" rel="noopener"><svg><use href="#i-gh"/></svg><span data-t="source"></span></a>
       </div>
-      <p class="meta" data-t="dlmeta"></p>
+      <p class="meta mobnote" data-t="mobNote"></p>
+      <p class="meta" id="dlmeta"></p>
+      <p class="meta" data-t="ssNote"></p>
     </div>
     <div class="tile">
-      <video src="demo.mp4" poster="poster.jpg" autoplay muted loop playsinline controls preload="metadata"></video>
+      <video src="demo.mp4?v=5" poster="poster.jpg?v=5" autoplay muted loop playsinline controls preload="metadata"></video>
       <span class="badge" data-t="sound"></span>
     </div>
   </div>
@@ -186,6 +195,7 @@
     <div class="card"><h3 data-t="doesntT"></h3><ul class="list no" id="doesnt"></ul></div>
   </div>
   <p class="note" id="verify"></p>
+  <p class="note" id="hash"></p>
 </div></section>
 
 <section id="privacy"><div class="wrap">
@@ -209,7 +219,8 @@
 
 <section class="final"><div class="wrap">
   <h2 data-t="finalT"></h2><p class="sub" style="margin-inline:auto" data-t="finalS"></p>
-  <div class="cta"><a class="btn dl" href="#"><svg><use href="#i-dl"/></svg><span data-t="download"></span></a></div>
+  <div class="cta"><a class="btn dl" href="#"><svg><use href="#i-dl"/></svg><span data-t="download"></span></a><button class="btn mob" type="button"><svg><use href="#i-dl"/></svg><span data-t="mobBtn"></span></button></div>
+  <p class="meta mobnote" style="text-align:center" data-t="mobNote"></p>
 </div></section>
 
 <footer><div class="wrap row">
@@ -227,7 +238,11 @@ const D = {
     pill: 'חינם · קוד פתוח · בלי פרסומות',
     h1a: 'שאלה קשה בזום?', h1b: 'האינטרנט שלך נפל.',
     lead: 'לחיצה אחת, והמצלמה מתחילה לקרטע, מיטשטשת, הקול נקטע, ובסוף אתה "נופל" מהשיחה. עובד בזום, בגוגל מיט ובכל תוכנה שבוחרים בה מצלמה ומיקרופון.',
-    download: 'הורדה לווינדוס', source: 'הקוד ב-GitHub', dlmeta: 'גרסה 0.2.0 · Windows 10/11 · כ-100MB · נבנה אוטומטית ובפומבי ב-GitHub',
+    download: 'הורדה לווינדוס', source: 'הקוד ב-GitHub', dlmeta: 'Windows 10/11 · כ-100MB · נבנה אוטומטית ובפומבי ב-GitHub', dlver: 'גרסה',
+    ssNote: 'ווינדוס עלול להזהיר כי האפליקציה חדשה: לוחצים "מידע נוסף" ואז "הפעל בכל זאת".',
+    mobBtn: 'שלחו לעצמכם את הלינק', mobNote: 'האפליקציה היא למחשב Windows. שלחו לעצמכם את הלינק ותורידו מהמחשב.', copied: 'הלינק הועתק ✓',
+    vtLink: 'נסרק ב-VirusTotal: 0 מתוך 64 אנטי-וירוסים מצאו משהו',
+    hashT: 'טביעת האצבע (SHA-256) של קובץ ההתקנה האחרון, ישר מ-GitHub. לבדיקה ב-PowerShell: Get-FileHash FakeLag-Setup.exe',
     sound: 'הדגמה · עם קול 🔊',
     trust: ['קוד פתוח, כל אחד יכול לבדוק', 'המצלמה והקול לא יוצאים מהמחשב', 'בלי חשבון ובלי מייל', 'בלי פרסומות ובלי מעקב', 'הסרה רגילה מהגדרות ווינדוס'],
     howT: 'איך זה עובד', howS: 'האפליקציה יושבת בין המצלמה והמיקרופון האמיתיים שלך לבין זום. מבחוץ זה נראה ונשמע כמו חיבור אינטרנט גרוע.',
@@ -253,13 +268,13 @@ const D = {
     privNote: 'OBS ו-VB-Cable הן תוכנות נפרדות עם מדיניות פרטיות משלהן: obsproject.com, vb-audio.com. השרת של החנות רץ על Cloudflare.',
     fPriv: 'פרטיות',
     does: ['קוראת את המצלמה והמיקרופון שלך, רק במחשב שלך', 'שולחת את התמונה ל-OBS בכתובת שעובדת רק מהמחשב עצמו', 'שולחת את הקול ל-VB-Cable, ומשם לזום', 'פותחת שלט לטלפון רק ברשת הביתית, עם קוד סודי', 'בחנות: שולחת רק את הלאג ששיתפת, הכינוי שבחרת ומספר אקראי של ההתקנה (כדי שאפשר יהיה לחסום ספאם)', 'בודקת מדי פעם אם יש הודעה חדשה (למשל על גרסה חדשה), בלי לשלוח עליך שום מידע', 'בעזרה: שולחת רק את מה שכתבת ומה מחובר אצלך (✓/✗). שיחה עם העוזר לא נשמרת', 'מתקינה את OBS ו-VB-Cable רק כשאתה לוחץ, מהמקורות הרשמיים (VB-Cable נבדק שהוא חתום ע"י היוצר שלו)'],
-    doesnt: ['לא מקליטה ולא שומרת תמונה או קול', 'לא שולחת את המצלמה או הקול לשום שרת', 'לא מתקינה דרייברים (VB-Cable מותקן בנפרד מהאתר הרשמי שלו)', 'לא רצה ברקע אחרי שסוגרים אותה', 'לא אוספת מידע, ואין חשבון'],
+    doesnt: ['לא מקליטה ולא שומרת תמונה או קול', 'לא שולחת את המצלמה או הקול לשום שרת', 'לא מתקינה שום דבר בלי לשאול (OBS ו-VB-Cable מותקנים רק כשלוחצים, מהאתרים הרשמיים)', 'לא רצה ברקע אחרי שסוגרים אותה', 'לא אוספת מידע, ואין חשבון'],
     verify: 'לא חייבים להאמין לנו: <a href="REPO">כל הקוד פתוח</a>, וקובץ ההתקנה <a href="REPO/actions">נבנה אוטומטית על ידי GitHub</a> מהקוד הזה, בפומבי.',
     needT: 'מה צריך', needS: 'שלוש תוכנות חינמיות. האשף באפליקציה מסביר הכל, צעד אחרי צעד.',
     n1: 'האפליקציה רצה על ווינדוס בלבד בינתיים.', n2: 'הופך את התמונה של האפליקציה למצלמה שזום רואה.', n3: 'מיקרופון וירטואלי שדרכו הקול נקטע. בלעדיו רק התמונה משתבשת.',
     faqT: 'שאלות נפוצות', faqS: 'אם משהו לא ברור, כנראה התשובה כאן.',
     faq: [
-      ['זה וירוס?', 'לא. כל הקוד פתוח ב-GitHub, וכל אחד יכול לקרוא אותו. קובץ ההתקנה נבנה אוטומטית על ידי GitHub מאותו קוד, ואפשר לראות את לוג הבנייה. האפליקציה לא מתקינה דרייברים ולא רצה ברקע.'],
+      ['זה וירוס?', 'לא. כל הקוד פתוח ב-GitHub, וכל אחד יכול לקרוא אותו. קובץ ההתקנה נבנה אוטומטית על ידי GitHub מאותו קוד, ואפשר לראות את לוג הבנייה. האפליקציה לא מתקינה כלום בלי לשאול ולא רצה ברקע.'],
       ['למה ווינדוס מקפיץ אזהרה כחולה בהתקנה?', 'ככה ווינדוס מתנהג עם כל תוכנה חדשה שאין לה חתימה דיגיטלית בתשלום (מאות דולרים בשנה). זה לא אומר שמשהו לא בסדר. לוחצים "More info" ואז "Run anyway". אם אנטי-וירוס מתלונן, זה מאותה סיבה.'],
       ['האפליקציה מקליטה אותי או שולחת משהו?', 'לא. התמונה והקול עוברים רק בתוך המחשב: מהמצלמה לאפליקציה, משם ל-OBS ולזום. אין שרת שמקבל אותם, אין חשבון, ואין מעקב.'],
       ['המורה יכול לגלות?', 'מבחוץ זה נראה ונשמע כמו חיבור גרוע. כדי שזה ייראה אמין: מתחילים ב"לאג" כמה שניות לפני, ורק אז "ניתוק אוטומטי". נפילה פתאומית ומושלמת נראית חשודה.'],
@@ -283,7 +298,11 @@ const D = {
     pill: 'Free · Open source · No ads',
     h1a: 'Hard question on Zoom?', h1b: 'Your internet just died.',
     lead: 'One click and your camera starts lagging, goes blurry, your voice cuts out, and then you “drop” from the call. Works in Zoom, Google Meet and any app where you pick a camera and mic.',
-    download: 'Download for Windows', source: 'Code on GitHub', dlmeta: 'Version 0.2.0 · Windows 10/11 · ~100MB · built automatically and publicly on GitHub',
+    download: 'Download for Windows', source: 'Code on GitHub', dlmeta: 'Windows 10/11 · ~100MB · built automatically and publicly on GitHub', dlver: 'Version',
+    ssNote: 'Windows may warn because the app is new: click “More info”, then “Run anyway”.',
+    mobBtn: 'Send yourself the link', mobNote: 'The app is for Windows PCs. Send yourself the link and download it on your computer.', copied: 'Link copied ✓',
+    vtLink: 'Scanned on VirusTotal: 0 of 64 antivirus engines flagged it',
+    hashT: 'Fingerprint (SHA-256) of the latest installer, straight from GitHub. To check in PowerShell: Get-FileHash FakeLag-Setup.exe',
     sound: 'Demo · sound on 🔊',
     trust: ['Open source, anyone can check', 'Camera and sound never leave your PC', 'No account, no email', 'No ads, no tracking', 'Uninstalls like any app'],
     howT: 'How it works', howS: 'The app sits between your real camera and mic and Zoom. From the outside it looks and sounds like a bad connection.',
@@ -309,13 +328,13 @@ const D = {
     privNote: 'OBS and VB-Cable are separate programs with their own privacy policies: obsproject.com, vb-audio.com. The store server runs on Cloudflare.',
     fPriv: 'Privacy',
     does: ['Reads your camera and mic, only on your computer', 'Sends the picture to OBS on an address that only works on this computer', 'Sends the sound to VB-Cable, and from there to Zoom', 'Opens a phone remote only on your home network, with a secret code', 'In the store: sends only the lag you shared, your nickname and a random install number (so spam can be blocked)', 'Checks now and then for a new notice (like a new version), without sending anything about you', 'In Help: sends only what you wrote and what’s connected (✓/✗). Helper chats aren’t saved', 'Installs OBS and VB-Cable only when you click, from the official sources (VB-Cable is checked to be signed by its maker)'],
-    doesnt: ['Doesn’t record or save picture or sound', 'Doesn’t send your camera or voice to any server', 'Doesn’t install drivers (VB-Cable is installed separately, from its official site)', 'Doesn’t run in the background after you close it', 'Doesn’t collect data, and there’s no account'],
+    doesnt: ['Doesn’t record or save picture or sound', 'Doesn’t send your camera or voice to any server', 'Doesn’t install anything without asking (OBS and VB-Cable only when you click, from their official sites)', 'Doesn’t run in the background after you close it', 'Doesn’t collect data, and there’s no account'],
     verify: 'You don’t have to trust us: <a href="REPO">all the code is open</a>, and the installer is <a href="REPO/actions">built automatically by GitHub</a> from that code, in public.',
     needT: 'What you need', needS: 'Three free programs. The wizard in the app walks you through it, step by step.',
     n1: 'Windows only for now.', n2: 'Turns the app’s picture into a camera Zoom can see.', n3: 'A virtual mic that carries the broken voice. Without it only the picture glitches.',
     faqT: 'Questions', faqS: 'If something isn’t clear, the answer is probably here.',
     faq: [
-      ['Is it a virus?', 'No. All the code is open on GitHub for anyone to read. The installer is built automatically by GitHub from that same code, and the build log is public. The app installs no drivers and doesn’t run in the background.'],
+      ['Is it a virus?', 'No. All the code is open on GitHub for anyone to read. The installer is built automatically by GitHub from that same code, and the build log is public. The app installs nothing without asking and doesn’t run in the background.'],
       ['Why does Windows say “Windows protected your PC”?', 'Windows does that with any new app that has no paid code-signing certificate (hundreds of dollars a year). It doesn’t mean anything is wrong. Click “More info”, then “Run anyway”. If an antivirus complains, it’s the same reason.'],
       ['Does it record me or send anything?', 'No. Picture and sound stay inside your computer: camera to app, then to OBS and Zoom. No server receives them, no account, no tracking.'],
       ['Can the teacher tell?', 'From the outside it looks and sounds like a bad connection. To sell it: start with “Lag” a few seconds before, then “Auto disconnect”. A sudden, perfect drop looks suspicious.'],
@@ -355,9 +374,34 @@ function render() {
   document.getElementById('verify').innerHTML = d.verify.replaceAll('REPO', REPO);
   document.getElementById('faqs').innerHTML = d.faq.map(([q, a]) => `<details><summary>${esc(q)}</summary><p>${esc(a)}</p></details>`).join('');
   document.title = d.name + (lang === 'he' ? ' · Fake Lag' : '');
+  const ver = REL.ver ? `${d.dlver} ${REL.ver} · ` : '';
+  document.getElementById('dlmeta').textContent = ver + d.dlmeta.replace(/~?כ?-?100MB/, REL.mb ? `${REL.mb}MB` : '$&');
+  const vt = VT_SCANNED.includes(REL.sha) ? ` · <a href="https://www.virustotal.com/gui/file/${REL.sha}" rel="noopener">${esc(d.vtLink)} ↗</a>` : '';
+  document.getElementById('hash').innerHTML = REL.sha ? `${esc(d.hashT)}<br><code>${esc(REL.sha)}</code>${vt}` : '';
 }
 document.getElementById('lang').onclick = () => { lang = lang === 'he' ? 'en' : 'he'; try { localStorage.setItem('fl-lang', lang); } catch {} render(); };
 document.querySelectorAll('a.dl').forEach(a => { a.href = DOWNLOAD_URL; });
+// the latest release (version, size, SHA-256) straight from GitHub; the page works without it
+const REL = {};
+// installers already scanned on VirusTotal (add the SHA-256 of each new release after scanning it)
+const VT_SCANNED = ['35c0c4b5ad651691792fc24f663933aa0af2abc44b6e2b9f11857b07a67ca1e1'];
+fetch('https://api.github.com/repos/Fake-Lag-app/fake-lag/releases/latest').then(r => r.ok ? r.json() : null).then(j => {
+  const a = j && (j.assets || []).find(x => x.name === 'FakeLag-Setup.exe');
+  if (!a) return;
+  REL.ver = String(j.tag_name || '').replace(/^v/, '');
+  REL.mb = Math.round(a.size / 1048576);
+  REL.sha = String(a.digest || '').replace(/^sha256:/, '');
+  render();
+}).catch(() => {});
+// phones can't run a Windows installer: offer to send the page to yourself
+const phone = /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent) || (matchMedia('(pointer:coarse)').matches && innerWidth < 820);
+if (phone) document.body.classList.add('phone');
+const PAGE = 'https://fake-lag-app.github.io/fake-lag/';
+document.querySelectorAll('.btn.mob').forEach(b => b.onclick = async () => {
+  const d = D[lang];
+  try { if (navigator.share) { await navigator.share({ title: d.name, text: d.mobNote, url: PAGE }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+  try { await navigator.clipboard.writeText(PAGE); b.querySelector('span').textContent = d.copied; } catch {}
+});
 render();
 </script>
 </body>
