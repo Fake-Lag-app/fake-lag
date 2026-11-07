@@ -1,7 +1,7 @@
 // Help for people who get stuck: an AI helper that knows the setup, and a chat with the admin.
 // Nothing from the AI chat is stored. Messages to the admin are stored per install (salted hash, no IP).
 
-const AI_MODELS = ['@cf/qwen/qwen3.8-27b', '@cf/meta/llama-4-scout-17b-16e-instruct'];
+const AI_MODELS = ['@cf/meta/llama-4-scout-17b-16e-instruct', '@cf/qwen/qwen3.8-27b'];
 
 // what the helper may suggest: the app turns these into buttons
 export const AI_ACTIONS = ['obs-install', 'obs-connect', 'cable-install', 'audio-fix', 'devices', 'zoom-help', 'human'];
@@ -68,7 +68,7 @@ export async function askAI(env, { messages, diag, lang }) {
   let lastErr = null;
   for (const model of AI_MODELS) {
     try {
-      const r = await env.AI.run(model, { messages: msgs, max_tokens: 500, temperature: 0.3 });
+      const r = await env.AI.run(model, { messages: msgs, max_tokens: 700, temperature: 0.3 });
       let text = r && (r.response ?? (r.choices && r.choices[0] && r.choices[0].message && r.choices[0].message.content));
       if (typeof text !== 'string') continue;
       text = text.replace(/<think>[\s\S]*?<\/think>/g, '').trim();

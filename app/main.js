@@ -134,16 +134,16 @@ ipcMain.handle('settings:set', (e, patch) => {
 });
 
 // ---------- the store: every call goes through here, never straight from a window ----------
-async function storeFetch(pathname, { method = 'GET', body, admin } = {}) {
+async function storeFetch(pathname, { method = 'GET', body, admin, timeout = 10000 } = {}) {
   const base = storeUrl();
   if (!base) return { ok: false, error: 'offline' };
   const headers = { 'content-type': 'application/json' };
   if (admin) { if (!S.adminKey) return { ok: false, error: 'not admin' }; headers.authorization = 'Bearer ' + S.adminKey; }
   try {
-    const r = await fetch(base + pathname, { method, headers, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(10000) });
+    const r = await fetch(base + pathname, { method, headers, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(timeout) });
     const data = await r.json().catch(() => ({}));
     return r.ok ? { ok: true, ...data } : { ok: false, error: data.error || 'http ' + r.status };
-  } catch (e) { return { ok: false, error: 'network' }; }
+  } catch (e) { return { ok: false, error: e && e.name === 'TimeoutError' ? 'timeout' : 'network' }; }
 }
 // anything that comes back from the server is checked again before a window sees it
 const cleanItems = items => (Array.isArray(items) ? items : []).slice(0, 200).map(it => {
@@ -211,7 +211,8 @@ ipcMain.handle('app:info', () => ({ version: app.getVersion(), os: `Windows ${os
 // ---------- help: the AI helper and messages to the admin ----------
 ipcMain.handle('help:ai', async (e, { messages, diag, lang } = {}) => {
   if (!fromCtl(e)) return { ok: false, error: 'forbidden' };
-  return storeFetch('/api/ai', { method: 'POST', body: { messages, diag, lang } });
+  // the AI can take 5-20 seconds to answer
+  return storeFetch('/api/ai', { method: 'POST', body: { messages, diag, lang }, timeout: 45000 });
 });
 ipcMain.handle('help:send', async (e, { text, diag } = {}) => {
   if (!fromCtl(e)) return { ok: false, error: 'forbidden' };
