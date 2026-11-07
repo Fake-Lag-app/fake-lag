@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>לאג מזויף · Fake Lag</title>
-<meta name="description" content="אפליקציה חינמית וקוד פתוח לווינדוס: לחיצה אחת, והמצלמה והקול בזום או במיט נראים כמו חיבור אינטרנט גרוע. בלי פרסומות, בלי חשבון, שום דבר לא נשלח לשרת.">
+<meta name="description" content="אפליקציה חינמית וקוד פתוח לווינדוס: לחיצה אחת, והמצלמה והקול בזום או במיט נראים כמו חיבור אינטרנט גרוע. בלי פרסומות, בלי חשבון, המצלמה והקול לא יוצאים מהמחשב.">
 <meta property="og:title" content="לאג מזויף · Fake Lag">
 <meta property="og:description" content="שאלה קשה בזום? האינטרנט שלך נפל. חינם, קוד פתוח.">
 <meta property="og:image" content="poster.jpg">
@@ -224,7 +224,7 @@ const D = {
     lead: 'לחיצה אחת, והמצלמה מתחילה לקרטע, מיטשטשת, הקול נקטע, ובסוף אתה "נופל" מהשיחה. עובד בזום, בגוגל מיט ובכל תוכנה שבוחרים בה מצלמה ומיקרופון.',
     download: 'הורדה לווינדוס', source: 'הקוד ב-GitHub', dlmeta: 'גרסה 0.2.0 · Windows 10/11 · כ-100MB · נבנה אוטומטית ובפומבי ב-GitHub',
     sound: 'הדגמה · עם קול 🔊',
-    trust: ['קוד פתוח, כל אחד יכול לבדוק', 'שום דבר לא נשלח לשרת', 'בלי חשבון ובלי מייל', 'בלי פרסומות ובלי מעקב', 'הסרה רגילה מהגדרות ווינדוס'],
+    trust: ['קוד פתוח, כל אחד יכול לבדוק', 'המצלמה והקול לא יוצאים מהמחשב', 'בלי חשבון ובלי מייל', 'בלי פרסומות ובלי מעקב', 'הסרה רגילה מהגדרות ווינדוס'],
     howT: 'איך זה עובד', howS: 'האפליקציה יושבת בין המצלמה והמיקרופון האמיתיים שלך לבין זום. מבחוץ זה נראה ונשמע כמו חיבור אינטרנט גרוע.',
     s1t: 'מתקינים', s1: 'מתקינים את האפליקציה, ואשף קצר בעברית מחבר אותה ל-OBS ול-VB-Cable. עושים את זה פעם אחת.',
     s2t: 'בוחרים בזום', s2: 'בזום או במיט בוחרים מצלמה "OBS Virtual Camera" ומיקרופון "CABLE Output". עד שלוחצים, הכל נראה רגיל לגמרי.',
@@ -238,7 +238,7 @@ const D = {
     cap1: 'השלט: מה המורה רואה, ולחיצה אחת לכל מצב', cap2: 'הלאגים שלך, המובנים, והחנות', cap3: 'עורך: שלבים, שכבות ומחוונים',
     safeT: 'בטוח? הנה בדיוק מה זה עושה', safeS: 'אנחנו יודעים שתוכנה חדשה מגורם לא מוכר נראית חשודה, אז אין פה סודות.',
     doesT: 'מה האפליקציה עושה', doesntT: 'מה היא לא עושה',
-    does: ['קוראת את המצלמה והמיקרופון שלך, רק במחשב שלך', 'שולחת את התמונה ל-OBS בכתובת שעובדת רק מהמחשב עצמו', 'שולחת את הקול ל-VB-Cable, ומשם לזום', 'פותחת שלט לטלפון רק ברשת הביתית, עם קוד סודי', 'בחנות: שולחת רק את הלאג ששיתפת והכינוי שבחרת'],
+    does: ['קוראת את המצלמה והמיקרופון שלך, רק במחשב שלך', 'שולחת את התמונה ל-OBS בכתובת שעובדת רק מהמחשב עצמו', 'שולחת את הקול ל-VB-Cable, ומשם לזום', 'פותחת שלט לטלפון רק ברשת הביתית, עם קוד סודי', 'בחנות: שולחת רק את הלאג ששיתפת, הכינוי שבחרת ומספר אקראי של ההתקנה (כדי שאפשר יהיה לחסום ספאם)', 'בודקת מדי פעם אם יש הודעה חדשה (למשל על גרסה חדשה), בלי לשלוח עליך שום מידע'],
     doesnt: ['לא מקליטה ולא שומרת תמונה או קול', 'לא שולחת את המצלמה או הקול לשום שרת', 'לא מתקינה דרייברים (VB-Cable מותקן בנפרד מהאתר הרשמי שלו)', 'לא רצה ברקע אחרי שסוגרים אותה', 'לא אוספת מידע, ואין חשבון'],
     verify: 'לא חייבים להאמין לנו: <a href="REPO">כל הקוד פתוח</a>, וקובץ ההתקנה <a href="REPO/actions">נבנה אוטומטית על ידי GitHub</a> מהקוד הזה, בפומבי.',
     needT: 'מה צריך', needS: 'שלוש תוכנות חינמיות. האשף באפליקציה מסביר הכל, צעד אחרי צעד.',
@@ -254,7 +254,7 @@ const D = {
       ['יש גרסה למק או לטלפון?', 'בינתיים רק ווינדוס 10 ו-11. הטלפון משמש כשלט: סורקים QR ושולטים מהכיס.'],
       ['למה צריך OBS ו-VB-Cable?', 'OBS הופך את התמונה של האפליקציה למצלמה שזום יכול לבחור. VB-Cable הוא מיקרופון וירטואלי שדרכו הקול המקוטע מגיע לזום. שניהם חינמיים, מוכרים, ומותקנים מהאתרים הרשמיים שלהם.'],
       ['מה זה חנות הלאגים?', 'בעורך בונים לאג משלך: שלבים, אפקטים לתמונה ולקול, וזמנים. אפשר לשתף אותו לכולם עם כינוי, והוא מופיע בחנות אחרי בדיקה ואישור. לאג הוא רק הגדרות, בלי קוד, אז אין בו שום סיכון.'],
-      ['השיתוף אנונימי?', 'כן. רק כינוי שבחרת, בלי מייל, בלי שם אמיתי ובלי חשבון. השרת לא שומר כתובות IP.'],
+      ['השיתוף אנונימי?', 'כן. רק כינוי שבחרת, בלי מייל, בלי שם אמיתי ובלי חשבון. השרת לא שומר כתובות IP, רק קוד מוצפן חד-כיווני שאי אפשר להפוך בחזרה לכתובת, וזה משמש רק לחסימת ספאם. אפשר גם לדווח 🚩 על תוכן לא מתאים.'],
       ['כתוב "המצלמה תפוסה", מה עושים?', 'רק האפליקציה צריכה לגשת למצלמה האמיתית. ב-OBS מוחקים או מסתירים את המקור "התקן הקלטת וידאו" (Video Capture Device), ובזום בוחרים OBS Virtual Camera.'],
       ['הקול לא נקטע, למה?', 'בזום: הגדרות ← אודיו ← מיקרופון CABLE Output, ובהפחתת רעשים לבחור "נמוך" או Original sound. אחרת זום "מחליק" את הקיטועים.'],
       ['איך מסירים?', 'הגדרות ווינדוס ← אפליקציות ← Fake Lag ← הסר. כמו כל תוכנה.'],
@@ -270,7 +270,7 @@ const D = {
     lead: 'One click and your camera starts lagging, goes blurry, your voice cuts out, and then you “drop” from the call. Works in Zoom, Google Meet and any app where you pick a camera and mic.',
     download: 'Download for Windows', source: 'Code on GitHub', dlmeta: 'Version 0.2.0 · Windows 10/11 · ~100MB · built automatically and publicly on GitHub',
     sound: 'Demo · sound on 🔊',
-    trust: ['Open source, anyone can check', 'Nothing is sent to a server', 'No account, no email', 'No ads, no tracking', 'Uninstalls like any app'],
+    trust: ['Open source, anyone can check', 'Camera and sound never leave your PC', 'No account, no email', 'No ads, no tracking', 'Uninstalls like any app'],
     howT: 'How it works', howS: 'The app sits between your real camera and mic and Zoom. From the outside it looks and sounds like a bad connection.',
     s1t: 'Install', s1: 'Install the app and a short wizard hooks it up to OBS and VB-Cable. Once, and you’re set.',
     s2t: 'Pick it in Zoom', s2: 'In Zoom or Meet choose the “OBS Virtual Camera” camera and the “CABLE Output” mic. Until you press, everything looks normal.',
@@ -284,7 +284,7 @@ const D = {
     cap1: 'The remote: what the teacher sees, one click per mode', cap2: 'Your lags, the built-ins, and the store', cap3: 'Editor: steps, layers and sliders',
     safeT: 'Is it safe? Here’s exactly what it does', safeS: 'We know a new app from someone you don’t know looks suspicious, so there are no secrets here.',
     doesT: 'What the app does', doesntT: 'What it doesn’t do',
-    does: ['Reads your camera and mic, only on your computer', 'Sends the picture to OBS on an address that only works on this computer', 'Sends the sound to VB-Cable, and from there to Zoom', 'Opens a phone remote only on your home network, with a secret code', 'In the store: sends only the lag you shared and your nickname'],
+    does: ['Reads your camera and mic, only on your computer', 'Sends the picture to OBS on an address that only works on this computer', 'Sends the sound to VB-Cable, and from there to Zoom', 'Opens a phone remote only on your home network, with a secret code', 'In the store: sends only the lag you shared, your nickname and a random install number (so spam can be blocked)', 'Checks now and then for a new notice (like a new version), without sending anything about you'],
     doesnt: ['Doesn’t record or save picture or sound', 'Doesn’t send your camera or voice to any server', 'Doesn’t install drivers (VB-Cable is installed separately, from its official site)', 'Doesn’t run in the background after you close it', 'Doesn’t collect data, and there’s no account'],
     verify: 'You don’t have to trust us: <a href="REPO">all the code is open</a>, and the installer is <a href="REPO/actions">built automatically by GitHub</a> from that code, in public.',
     needT: 'What you need', needS: 'Three free programs. The wizard in the app walks you through it, step by step.',
@@ -300,7 +300,7 @@ const D = {
       ['Is there a Mac or phone version?', 'Windows 10 and 11 only for now. Your phone works as a remote: scan a QR and control it from your pocket.'],
       ['Why do I need OBS and VB-Cable?', 'OBS turns the app’s picture into a camera Zoom can pick. VB-Cable is a virtual mic that carries the broken voice to Zoom. Both are free, well known, and installed from their official sites.'],
       ['What is the lag store?', 'In the editor you build your own lag: steps, picture and sound effects, timings. You can share it with a nickname, and it appears in the store after it’s reviewed and approved. A lag is just settings, no code, so there’s no risk in it.'],
-      ['Is sharing anonymous?', 'Yes. Just a nickname you choose, no email, no real name, no account. The server doesn’t store IP addresses.'],
+      ['Is sharing anonymous?', 'Yes. Just a nickname you choose, no email, no real name, no account. The server doesn’t store IP addresses, only a one-way scrambled code that can’t be turned back into one, used only to block spam. You can also report 🚩 anything inappropriate.'],
       ['It says “camera is busy”, what now?', 'Only the app should touch your real camera. In OBS delete or hide the Video Capture Device source, and in Zoom pick OBS Virtual Camera.'],
       ['The sound doesn’t cut out, why?', 'In Zoom: Settings → Audio → Microphone CABLE Output, and set background noise to Low or use Original sound. Otherwise Zoom smooths over the cuts.'],
       ['How do I uninstall it?', 'Windows Settings → Apps → Fake Lag → Uninstall. Like any app.'],

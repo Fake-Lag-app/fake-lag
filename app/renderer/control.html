@@ -5,12 +5,16 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob: http://127.0.0.1:5174; style-src 'self' 'unsafe-inline'; script-src 'self'">
 <title>Fake Lag</title>
 <link rel="stylesheet" href="control.css">
+<link rel="stylesheet" href="admin-ui.css">
 </head>
 <body>
 <header>
   <h1 data-i18n="app"></h1>
   <div class="lang"><button data-lang="he">עב</button><button data-lang="en">EN</button></div>
 </header>
+
+<!-- the admin's announcement to everyone (text only) -->
+<div id="announce" hidden><span></span><button aria-label="close">✕</button></div>
 
 <!-- first-run wizard bar -->
 <div id="wiz" hidden>
@@ -93,6 +97,7 @@
 <script src="i18n.js"></script>
 <script src="schema.js"></script>
 <script src="effects.js"></script>
+<script src="admin-ui.js"></script>
 <script src="lags.js"></script>
 <script src="control.js"></script>
 </body>

@@ -14,6 +14,8 @@ contextBridge.exposeInMainWorld('fl', {
   storeList: q => ipcRenderer.invoke('store:list', q),
   storeSubmit: item => ipcRenderer.invoke('store:submit', item),
   storeLike: id => ipcRenderer.invoke('store:like', id),
-  adminPending: () => ipcRenderer.invoke('admin:pending'),
-  adminAct: (id, action) => ipcRenderer.invoke('admin:act', { id, action }),
+  storeReport: id => ipcRenderer.invoke('store:report', id),
+  adminCall: (path, method, body) => ipcRenderer.invoke('admin:call', { path, method, body }),
+  getAnnounce: () => ipcRenderer.invoke('announce:get'),
+  onAnnounce: on('announce'),
 });

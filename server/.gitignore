@@ -4,3 +4,5 @@ node_modules/
 # copied from app/renderer by `npm run assets`
 public/schema.js
 public/effects.js
+public/admin-ui.js
+public/admin-ui.css

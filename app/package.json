@@ -1,7 +1,7 @@
 {
   "name": "fake-lag",
   "productName": "Fake Lag",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Make your Zoom / Google Meet camera and mic look like your internet is dying.",
   "author": "Fake Lag",
   "main": "main.js",

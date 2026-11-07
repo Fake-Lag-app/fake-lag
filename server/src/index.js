@@ -1,6 +1,8 @@
 // Fake Lag store: people share lags and effects, the admin approves them.
-// Public:  GET /api/items  POST /api/submit  POST /api/like/:id
-// Admin:   GET /api/admin/pending  POST /api/admin/:id/(approve|reject|delete)   (Authorization: Bearer ADMIN_KEY)
+// Public:  GET /api/items  GET /api/announce  POST /api/submit  POST /api/like/:id  POST /api/report/:id
+// Admin (Authorization: Bearer ADMIN_KEY):
+//   GET  /api/admin/(pending|items|stats|config|blocks|log)
+//   POST /api/admin/(config|bulk|unblock)  POST /api/admin/:id/(approve|reject|delete|unpublish|feature|unfeature|clearReports|block|edit)
 // Everything else is served from ./public (the admin page).
 import Schema from '../../app/renderer/schema.js';
 
@@ -60,7 +62,80 @@ async function readJson(request) {
   try { return { value: JSON.parse(new TextDecoder().decode(bytes)) }; } catch { return { error: 'bad json', status: 400 }; }
 }
 
-const rowOut = r => ({ id: r.id, likes: r.likes, created: r.created, status: r.status, data: JSON.parse(r.data) });
+const rowOut = r => ({ id: r.id, likes: r.likes, created: r.created, status: r.status, featured: !!r.featured, data: JSON.parse(r.data) });
+const adminRow = r => ({ ...rowOut(r), reports: r.reports | 0, decided: r.decided, sender: (r.sender || r.ipk || '').slice(0, 8) });
+
+// ---------- settings the admin can change ----------
+const CONFIG_DEFAULTS = { paused: false, submitsPerDay: LIMITS.submitsPerDay, autoHide: 5, banned: [], announce: null };
+async function loadConfig(env) {
+  const { results } = await env.DB.prepare(`SELECT k, v FROM config`).all();
+  const c = { ...CONFIG_DEFAULTS };
+  for (const r of results) { try { if (r.k in c) c[r.k] = JSON.parse(r.v); } catch {} }
+  return c;
+}
+const plain = (s, max) => String(s == null ? '' : s).replace(/[<>\u0000‮]/g, '').trim().slice(0, max);
+// whatever the admin sends is checked and clamped like anything else
+function cleanConfig(input, cur) {
+  const c = { ...cur }, i = input && typeof input === 'object' ? input : {};
+  if ('paused' in i) c.paused = !!i.paused;
+  if ('submitsPerDay' in i) c.submitsPerDay = Math.max(0, Math.min(50, Math.round(Number(i.submitsPerDay)) || 0));
+  if ('autoHide' in i) c.autoHide = Math.max(0, Math.min(100, Math.round(Number(i.autoHide)) || 0));
+  if ('banned' in i) c.banned = [...new Set((Array.isArray(i.banned) ? i.banned : []).map(w => plain(w, 30).toLowerCase()).filter(Boolean))].slice(0, 200);
+  if ('announce' in i) {
+    const a = i.announce;
+    const he = plain(a && a.he, 200), en = plain(a && a.en, 200);
+    c.announce = he || en ? { he, en, level: a.level === 'warn' ? 'warn' : 'info', until: Math.max(0, Number(a.until) | 0), id: Date.now().toString(36) } : null;
+  }
+  return c;
+}
+const liveAnnounce = c => (c.announce && (!c.announce.until || c.announce.until > now()) ? c.announce : null);
+const hasBanned = (value, banned) => { const s = JSON.stringify(value).toLowerCase(); return banned.find(w => s.includes(w)); };
+
+const stableKey = async (env, kind, raw) => hex(await sha256(`${env.HASH_SALT || 'dev-salt'}|${kind}|${raw}`)).slice(0, 32);
+const INST = /^[0-9a-f-]{16,40}$/i;
+
+async function audit(env, action, item, note) {
+  await env.DB.prepare(`INSERT INTO log (t, action, item, note) VALUES (?1, ?2, ?3, ?4)`).bind(now(), action, item || null, note ? String(note).slice(0, 200) : null).run();
+}
+
+// download counts of the app, straight from the public GitHub releases
+async function downloads() {
+  try {
+    const r = await fetch('https://api.github.com/repos/Fake-Lag-app/fake-lag/releases?per_page=30', {
+      headers: { 'user-agent': 'fake-lag-store', accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(5000), cf: { cacheTtl: 600 } });
+    if (!r.ok) return null;
+    const rel = await r.json();
+    const list = rel.map(x => ({ tag: String(x.tag_name).slice(0, 20), n: (x.assets || []).reduce((s, a) => s + (a.download_count | 0), 0) }));
+    return { total: list.reduce((s, x) => s + x.n, 0), releases: list.slice(0, 10) };
+  } catch { return null; }
+}
+
+const ITEM_ACTIONS = ['approve', 'reject', 'delete', 'unpublish', 'feature', 'unfeature', 'clearReports', 'block'];
+async function itemAction(env, id, action) {
+  if (action === 'block') {
+    const it = await env.DB.prepare(`SELECT sender, ipk FROM items WHERE id = ?1`).bind(id).first();
+    if (!it) return false;
+    for (const k of [it.sender, it.ipk].filter(Boolean)) {
+      await env.DB.prepare(`INSERT OR IGNORE INTO blocks (k, created, note) VALUES (?1, ?2, ?3)`).bind(k, now(), id.slice(0, 8)).run();
+    }
+    // everything this sender has in the store or waiting goes away with them
+    await env.DB.prepare(`UPDATE items SET status = 'rejected', decided = ?3, featured = 0 WHERE (?1 IS NOT NULL AND sender = ?1) OR (?2 IS NOT NULL AND ipk = ?2) OR id = ?4`)
+      .bind(it.sender || null, it.ipk || null, now(), id).run();
+    return true;
+  }
+  const q = {
+    approve: [`UPDATE items SET status = 'approved', decided = ?2, reports = 0 WHERE id = ?1`, true],
+    reject: [`UPDATE items SET status = 'rejected', decided = ?2, featured = 0 WHERE id = ?1`, true],
+    unpublish: [`UPDATE items SET status = 'pending', decided = ?2, featured = 0 WHERE id = ?1`, true],
+    delete: [`DELETE FROM items WHERE id = ?1`, false],
+    feature: [`UPDATE items SET featured = 1 WHERE id = ?1 AND status = 'approved'`, false],
+    unfeature: [`UPDATE items SET featured = 0 WHERE id = ?1`, false],
+    clearReports: [`UPDATE items SET reports = 0 WHERE id = ?1`, false],
+  }[action];
+  const st = env.DB.prepare(q[0]);
+  const r = await (q[1] ? st.bind(id, now()) : st.bind(id)).run();
+  return r.meta.changes > 0;
+}
 
 async function api(request, env, url) {
   const parts = url.pathname.split('/').filter(Boolean);   // ['api', ...]
@@ -69,35 +144,61 @@ async function api(request, env, url) {
   if (m === 'GET' && parts[1] === 'items' && parts.length === 2) {
     const kind = url.searchParams.get('kind') === 'lag' ? 'lag' : 'effect';
     const order = url.searchParams.get('sort') === 'top' ? 'likes DESC, created DESC' : 'created DESC';
-    const { results } = await env.DB.prepare(`SELECT * FROM items WHERE status = 'approved' AND kind = ?1 ORDER BY ${order} LIMIT 100`).bind(kind).all();
+    const { results } = await env.DB.prepare(`SELECT * FROM items WHERE status = 'approved' AND kind = ?1 ORDER BY featured DESC, ${order} LIMIT 100`).bind(kind).all();
     return json({ items: results.map(rowOut) });
+  }
+
+  // what the app shows at the top: the admin's announcement, and whether sharing is open
+  if (m === 'GET' && parts[1] === 'announce' && parts.length === 2) {
+    const c = await loadConfig(env);
+    return new Response(JSON.stringify({ announce: liveAnnounce(c), submitOpen: !c.paused }), { headers: { ...HEADERS, 'cache-control': 'public, max-age=60' } });
   }
 
   if (m === 'POST' && parts[1] === 'submit' && parts.length === 2) {
     const body = await readJson(request);
     if (body.error) return fail(body.error, body.status);
+    const inst = body.value && typeof body.value.inst === 'string' && INST.test(body.value.inst) ? body.value.inst : '';
     const v = Schema.validate(body.value);
     if (!v.ok) return fail(v.error, 400);
+    const c = await loadConfig(env);
+    if (c.paused) return fail('paused', 503);
+    if (hasBanned(v.value, c.banned)) return fail('word', 400);
     const who = await visitor(request, env);
-    if (!(await underLimit(env, `sub:${who}`, LIMITS.submitsPerDay))) return fail('rate', 429);
+    if (!(await underLimit(env, `sub:${who}`, c.submitsPerDay))) return fail('rate', 429);
+    const ipk = await stableKey(env, 'ip', request.headers.get('cf-connecting-ip') || 'local');
+    const sender = inst ? await stableKey(env, 'inst', inst) : null;
+    const blocked = await env.DB.prepare(`SELECT 1 FROM blocks WHERE k = ?1 OR k = ?2 LIMIT 1`).bind(ipk, sender || ipk).first();
+    // a blocked sender is told it worked, so they have no reason to try another way
+    if (blocked) return json({ id: crypto.randomUUID(), status: 'pending' }, 201);
     const pending = await env.DB.prepare(`SELECT COUNT(*) AS n FROM items WHERE status = 'pending'`).first();
     if (pending.n >= LIMITS.maxPending) return fail('queue full', 503);
     const id = crypto.randomUUID();
-    await env.DB.prepare(`INSERT INTO items (id, kind, data, created) VALUES (?1, ?2, ?3, ?4)`)
-      .bind(id, v.value.kind, JSON.stringify(v.value), now()).run();
+    await env.DB.prepare(`INSERT INTO items (id, kind, data, created, sender, ipk) VALUES (?1, ?2, ?3, ?4, ?5, ?6)`)
+      .bind(id, v.value.kind, JSON.stringify(v.value), now(), sender, ipk).run();
     return json({ id, status: 'pending' }, 201);
   }
 
-  if (m === 'POST' && parts[1] === 'like' && parts.length === 3) {
-    const id = parts[2];
+  if (m === 'POST' && (parts[1] === 'like' || parts[1] === 'report') && parts.length === 3) {
+    const id = parts[2], like = parts[1] === 'like';
     if (!ID.test(id)) return fail('not found', 404);
     const who = await visitor(request, env);
-    if (!(await underLimit(env, `like:${who}:${id}`, LIMITS.likesPerItemPerDay))) {
+    if (!(await underLimit(env, `${parts[1]}:${who}:${id}`, 1))) {
       const r = await env.DB.prepare(`SELECT likes FROM items WHERE id = ?1 AND status = 'approved'`).bind(id).first();
-      return r ? json({ likes: r.likes, already: true }) : fail('not found', 404);
+      return r ? json(like ? { likes: r.likes, already: true } : { ok: true, already: true }) : fail('not found', 404);
     }
-    const r = await env.DB.prepare(`UPDATE items SET likes = likes + 1 WHERE id = ?1 AND status = 'approved' RETURNING likes`).bind(id).first();
-    return r ? json({ likes: r.likes }) : fail('not found', 404);
+    if (like) {
+      const r = await env.DB.prepare(`UPDATE items SET likes = likes + 1 WHERE id = ?1 AND status = 'approved' RETURNING likes`).bind(id).first();
+      return r ? json({ likes: r.likes }) : fail('not found', 404);
+    }
+    const r = await env.DB.prepare(`UPDATE items SET reports = reports + 1 WHERE id = ?1 AND status = 'approved' RETURNING reports, featured`).bind(id).first();
+    if (!r) return fail('not found', 404);
+    const c = await loadConfig(env);
+    // enough people complained: off the store and back to the admin's queue until it is looked at
+    if (c.autoHide && r.reports >= c.autoHide && !r.featured) {
+      await env.DB.prepare(`UPDATE items SET status = 'pending' WHERE id = ?1`).bind(id).run();
+      await audit(env, 'autoHide', id, `${r.reports} reports`);
+    }
+    return json({ ok: true });
   }
 
   if (parts[1] === 'admin') {
@@ -109,19 +210,100 @@ async function api(request, env, url) {
       await underLimit(env, `adminfail:${who}`, LIMITS.adminFailsPerDay);
       return fail('unauthorized', 401);
     }
-    if (parts[2] !== 'pending' && !ID.test(parts[2] || '')) return fail('not found', 404);
+    const p2 = parts[2] || '';
 
-    if (m === 'GET' && parts[2] === 'pending' && parts.length === 3) {
+    if (m === 'GET' && p2 === 'pending' && parts.length === 3) {
       const { results } = await env.DB.prepare(`SELECT * FROM items WHERE status = 'pending' ORDER BY created ASC LIMIT 100`).all();
-      return json({ items: results.map(rowOut) });
+      return json({ items: results.map(adminRow) });
     }
-    if (m === 'POST' && parts.length === 4 && ['approve', 'reject', 'delete'].includes(parts[3])) {
-      const id = parts[2], action = parts[3];
-      const q = action === 'delete'
-        ? env.DB.prepare(`DELETE FROM items WHERE id = ?1`).bind(id)
-        : env.DB.prepare(`UPDATE items SET status = ?2, decided = ?3 WHERE id = ?1`).bind(id, action === 'approve' ? 'approved' : 'rejected', now());
-      const r = await q.run();
+
+    if (m === 'GET' && p2 === 'items' && parts.length === 3) {
+      const sp = url.searchParams;
+      const status = ['pending', 'approved', 'rejected', 'reported', 'featured'].includes(sp.get('status')) ? sp.get('status') : 'approved';
+      const kind = ['effect', 'lag'].includes(sp.get('kind')) ? sp.get('kind') : null;
+      const q = plain(sp.get('q'), 40).toLowerCase();
+      const where = status === 'reported' ? `reports > 0` : status === 'featured' ? `featured = 1` : `status = ?1`;
+      const order = status === 'reported' ? 'reports DESC, created DESC' : status === 'pending' ? 'created ASC' : 'featured DESC, created DESC';
+      const { results } = await env.DB.prepare(
+        `SELECT * FROM items WHERE ${where} AND (?2 IS NULL OR kind = ?2) AND (?3 = '' OR instr(lower(data), ?3) > 0) ORDER BY ${order} LIMIT 200`)
+        .bind(status, kind, q).all();
+      return json({ items: results.map(adminRow) });
+    }
+
+    if (m === 'GET' && p2 === 'stats' && parts.length === 3) {
+      const since = now() - 14 * 86400;
+      const [byStatus, totals, top, perDay, blocks, dl] = await Promise.all([
+        env.DB.prepare(`SELECT status, kind, COUNT(*) AS n FROM items GROUP BY status, kind`).all(),
+        env.DB.prepare(`SELECT COALESCE(SUM(likes),0) AS likes, COALESCE(SUM(reports > 0),0) AS reported, COALESCE(SUM(featured),0) AS featured, COUNT(DISTINCT COALESCE(sender, ipk)) AS senders FROM items`).first(),
+        env.DB.prepare(`SELECT * FROM items WHERE status = 'approved' ORDER BY likes DESC LIMIT 5`).all(),
+        env.DB.prepare(`SELECT created / 86400 AS d, COUNT(*) AS n FROM items WHERE created >= ?1 GROUP BY d ORDER BY d`).bind(since).all(),
+        env.DB.prepare(`SELECT COUNT(*) AS n FROM blocks`).first(),
+        downloads(),
+      ]);
+      return json({ byStatus: byStatus.results, ...totals, blocks: blocks.n, top: top.results.map(rowOut), perDay: perDay.results, downloads: dl });
+    }
+
+    if (p2 === 'config' && parts.length === 3 && (m === 'GET' || m === 'POST')) {
+      const cur = await loadConfig(env);
+      if (m === 'GET') return json({ config: cur });
+      const body = await readJson(request);
+      if (body.error) return fail(body.error, body.status);
+      const next = cleanConfig(body.value, cur);
+      await env.DB.batch(Object.keys(CONFIG_DEFAULTS).map(k =>
+        env.DB.prepare(`INSERT INTO config (k, v) VALUES (?1, ?2) ON CONFLICT(k) DO UPDATE SET v = ?2`).bind(k, JSON.stringify(next[k]))));
+      await audit(env, 'config', null, Object.keys(body.value || {}).filter(k => k in CONFIG_DEFAULTS).join(','));
+      return json({ config: next });
+    }
+
+    if (m === 'GET' && p2 === 'blocks' && parts.length === 3) {
+      const { results } = await env.DB.prepare(`SELECT k, created, note FROM blocks ORDER BY created DESC LIMIT 200`).all();
+      return json({ blocks: results });
+    }
+    if (m === 'POST' && p2 === 'unblock' && parts.length === 3) {
+      const body = await readJson(request);
+      if (body.error) return fail(body.error, body.status);
+      const k = String(body.value && body.value.k || '');
+      if (!/^[0-9a-f]{32}$/.test(k)) return fail('not found', 404);
+      const r = await env.DB.prepare(`DELETE FROM blocks WHERE k = ?1`).bind(k).run();
+      if (r.meta.changes) await audit(env, 'unblock', null, k.slice(0, 8));
       return r.meta.changes ? json({ ok: true }) : fail('not found', 404);
+    }
+
+    if (m === 'GET' && p2 === 'log' && parts.length === 3) {
+      const { results } = await env.DB.prepare(`SELECT t, action, item, note FROM log ORDER BY id DESC LIMIT 100`).all();
+      return json({ log: results });
+    }
+
+    if (m === 'POST' && p2 === 'bulk' && parts.length === 3) {
+      const body = await readJson(request);
+      if (body.error) return fail(body.error, body.status);
+      const { ids, action } = body.value || {};
+      if (!['approve', 'reject', 'delete'].includes(action) || !Array.isArray(ids) || ids.length > 100 || !ids.every(i => typeof i === 'string' && ID.test(i))) return fail('bad request', 400);
+      let n = 0;
+      for (const id of ids) if (await itemAction(env, id, action)) n++;
+      await audit(env, 'bulk:' + action, null, `${n} items`);
+      return json({ ok: true, n });
+    }
+
+    if (!ID.test(p2)) return fail('not found', 404);
+    const id = p2;
+
+    if (m === 'POST' && parts.length === 4 && parts[3] === 'edit') {
+      const body = await readJson(request);
+      if (body.error) return fail(body.error, body.status);
+      const row = await env.DB.prepare(`SELECT data FROM items WHERE id = ?1`).bind(id).first();
+      if (!row) return fail('not found', 404);
+      const cur = JSON.parse(row.data), b = body.value || {};
+      const v = Schema.validate({ ...cur, name: 'name' in b ? b.name : cur.name, by: 'by' in b ? b.by : cur.by });
+      if (!v.ok) return fail(v.error, 400);
+      await env.DB.prepare(`UPDATE items SET data = ?2 WHERE id = ?1`).bind(id, JSON.stringify(v.value)).run();
+      await audit(env, 'edit', id, v.value.name);
+      return json({ ok: true, data: v.value });
+    }
+    if (m === 'POST' && parts.length === 4 && ITEM_ACTIONS.includes(parts[3])) {
+      const done = await itemAction(env, id, parts[3]);
+      if (done) await audit(env, parts[3], id);
+      return done ? json({ ok: true }) : fail('not found', 404);
     }
   }
   return fail('not found', 404);

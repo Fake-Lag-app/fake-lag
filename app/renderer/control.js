@@ -176,3 +176,22 @@ $('#copyObs').onclick = () => { navigator.clipboard.writeText($('#obsUrl').textC
   await loadDevices();
   refreshRemote();
 })();
+
+// ---------- the admin's announcement: text only, closable, comes back only when a new one is posted ----------
+(function () {
+  const box = document.getElementById('announce');
+  let cur = null;
+  const seen = () => { try { return localStorage.getItem('announceSeen') || ''; } catch { return ''; } };
+  function show() {
+    const a = cur && cur.announce;
+    const text = a ? ((S.lang === 'en' ? a.en || a.he : a.he || a.en) || '') : '';
+    box.hidden = !text || seen() === a.id;
+    if (box.hidden) return;
+    box.className = a.level === 'warn' ? 'warn' : '';
+    box.querySelector('span').textContent = '📣 ' + text;
+  }
+  box.querySelector('button').onclick = () => { try { localStorage.setItem('announceSeen', cur.announce.id); } catch {} box.hidden = true; };
+  window.fl.onAnnounce(a => { cur = a; show(); });
+  window.fl.getAnnounce().then(a => { cur = a; show(); });
+  window.fl.onSettings(() => show());
+})();

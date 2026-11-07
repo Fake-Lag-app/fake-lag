@@ -17,7 +17,9 @@
       network: 'אין חיבור לחנות כרגע.', rate: 'שלחת הרבה היום. נסה מחר.', effects: 'אפקטים', lags: 'לאגים', newest: 'חדשים', top: 'פופולריים',
       by: 'מאת', anon: 'אנונימי', add: '+ הוסף לשלי', added: 'נוסף ✓', try: '▶ נסה', empty: 'עוד אין כאן כלום.', loading: 'טוען…',
       pending: 'ממתינים לאישור', approve: '✓ אשר', reject: '✕ דחה', remove: '🗑 מחק מהחנות', refresh: 'רענון', nothingPending: 'אין מה לאשר 🎉',
-      adminPreview: 'בחר פריט כדי לראות אותו על המצלמה שלך', err: 'שגיאה: ',
+      adminPreview: 'לחץ "▶ תצוגה" על פריט כדי לראות אותו על המצלמה שלך', err: 'שגיאה: ',
+      report: '🚩', reportTip: 'דווח על תוכן לא מתאים', reported: 'תודה, דווח ✓', featured: '⭐ מומלץ',
+      paused: 'השיתוף סגור כרגע. נסה שוב בהמשך.', word: 'יש בשם או בטקסט מילה שאסור להשתמש בה.',
     },
     en: {
       mine: 'Mine', store: 'Store', newEffect: '+ New effect', newLag: '+ New lag', builtin: 'Built-in', effect: 'Effect', lag: 'Lag',
@@ -31,7 +33,9 @@
       network: 'Can’t reach the store right now.', rate: 'You sent a lot today. Try tomorrow.', effects: 'Effects', lags: 'Lags', newest: 'Newest', top: 'Popular',
       by: 'by', anon: 'anonymous', add: '+ Add to mine', added: 'Added ✓', try: '▶ Try', empty: 'Nothing here yet.', loading: 'Loading…',
       pending: 'Waiting for approval', approve: '✓ Approve', reject: '✕ Reject', remove: '🗑 Remove from store', refresh: 'Refresh', nothingPending: 'Nothing to approve 🎉',
-      adminPreview: 'Pick an item to see it on your camera', err: 'Error: ',
+      adminPreview: 'Press "▶ Preview" on an item to see it on your camera', err: 'Error: ',
+      report: '🚩', reportTip: 'Report inappropriate content', reported: 'Thanks, reported ✓', featured: '⭐ Featured',
+      paused: 'Sharing is closed right now. Try again later.', word: 'The name or text has a word that isn’t allowed.',
     },
   };
   const t = k => (TX[lang] || TX.he)[k] ?? k;
@@ -52,7 +56,7 @@
     for (const c of kids.flat()) if (c != null && c !== false) el.append(c instanceof Node ? c : String(c));
     return el;
   }
-  const errText = e => e === 'offline' ? t('storeOffline') : e === 'network' ? t('network') : e === 'rate' ? t('rate') : t('err') + e;
+  const errText = e => ['offline', 'network', 'rate', 'paused', 'word'].includes(e) ? t(e === 'offline' ? 'storeOffline' : e) : t('err') + e;
 
   // ---------- preview: our own copy of the camera, never sent anywhere ----------
   let pv = null, pvGen = 0;
@@ -153,17 +157,22 @@
       const likeBtn = h('button', { class: 'ghost', text: `♥ ${it.likes}`, onclick: async () => {
         const x = await fl.storeLike(it.id); if (x.ok) likeBtn.textContent = `♥ ${x.likes ?? it.likes + 1}`;
       } });
-      list.append(h('div', { class: 'lcard' },
-        h('div', { class: 'lhead' }, h('b', { text: p.name }), h('span', { class: 'badge', text: t(p.kind) }), h('small', { text: `${t('by')} ${p.by || t('anon')}` })),
+      const reportBtn = h('button', { class: 'ghost', text: t('report'), title: t('reportTip'), onclick: async () => {
+        if (!confirm(t('reportTip') + '?')) return;
+        const x = await fl.storeReport(it.id); if (x.ok) { reportBtn.textContent = t('reported'); reportBtn.disabled = true; } else alert(errText(x.error));
+      } });
+      list.append(h('div', { class: 'lcard' + (it.featured ? ' feat' : '') },
+        h('div', { class: 'lhead' }, h('b', { text: p.name }), h('span', { class: 'badge', text: t(p.kind) }),
+          it.featured ? h('span', { class: 'badge gold', text: t('featured') }) : null, h('small', { text: `${t('by')} ${p.by || t('anon')}` })),
         h('div', { class: 'lbtns' },
           h('button', { class: 'ghost', text: t('try'), onclick: () => previewPlay(p) }),
           h('button', { class: 'ghost', text: have ? t('added') : t('add'), disabled: have, onclick: async e => {
             await savePresets([...(S.presets || []), { ...p, id: newId(), from: 'store', sid: it.id }]); e.target.textContent = t('added'); e.target.disabled = true;
           } }),
-          likeBtn,
+          likeBtn, reportBtn,
           S.isAdmin ? h('button', { class: 'ghost danger', text: t('remove'), onclick: async () => {
             if (!confirm(t('confirmDel').replace('%s', p.name))) return;
-            const x = await fl.adminAct(it.id, 'delete'); if (x.ok) render(); else alert(errText(x.error));
+            const x = await fl.adminCall(`/api/admin/${it.id}/delete`, 'POST'); if (x.status === 200) render(); else alert(errText(x.error || x.status));
           } }) : null)));
     }
   }
@@ -287,6 +296,7 @@
     const dlg = h('dialog', { class: 'dlg' });
     const nick = h('input', { maxlength: SC.LIMITS.by, value: S.nick || '', placeholder: t('nickPh') });
     const msg = h('p', { class: 'note' });
+    fl.getAnnounce().then(a => { if (a && a.submitOpen === false) { msg.className = 'note warn'; msg.textContent = t('paused'); send.disabled = true; } });
     const send = h('button', { class: 'primary', text: t('send'), onclick: async () => {
       send.disabled = true;
       await fl.setSettings({ nick: nick.value.trim() });
@@ -300,32 +310,14 @@
     document.body.append(dlg); dlg.showModal();
   }
 
-  // ---------- admin ----------
-  async function renderAdmin(root) {
+  // ---------- admin: the same panel as the admin web page (admin-ui.js), talking through main ----------
+  function renderAdmin(root) {
     const canvas = h('canvas', { class: 'pv', width: 640, height: 360 });
     root.append(h('div', { class: 'pvwrap' }, canvas, h('small', { text: t('adminPreview') })));
     startPreview(canvas);
-    root.append(h('div', { class: 'row' }, h('h3', { text: t('pending') }), h('button', { class: 'ghost', text: t('refresh'), onclick: render })));
-    const list = h('div', { class: 'list' }, h('p', { class: 'note', text: t('loading') }));
-    root.append(list);
-    const r = await fl.adminPending();
-    list.textContent = '';
-    if (!r.ok) { list.append(h('p', { class: 'note warn', text: errText(r.error) })); return; }
-    if (!r.items.length) { list.append(h('p', { class: 'note', text: t('nothingPending') })); return; }
-    for (const it of r.items) {
-      const p = it.data, row = h('div', { class: 'lcard' },
-        h('div', { class: 'lhead' }, h('b', { text: p.name }), h('span', { class: 'badge', text: t(p.kind) }),
-          h('small', { text: `${t('by')} ${p.by || t('anon')} · ${new Date(it.created * 1000).toLocaleString(lang === 'en' ? 'en-GB' : 'he-IL')}` })),
-        h('div', { class: 'lbtns' },
-          h('button', { class: 'ghost', text: t('try'), onclick: () => previewPlay(p) }),
-          h('button', { class: 'primary', text: t('approve'), onclick: () => act(it.id, 'approve', row) }),
-          h('button', { class: 'ghost danger', text: t('reject'), onclick: () => act(it.id, 'reject', row) })));
-      list.append(row);
-    }
-    async function act(id, action, row) {
-      const x = await fl.adminAct(id, action);
-      if (x.ok) row.remove(); else alert(errText(x.error));
-    }
+    const panel = h('div');
+    root.append(panel);
+    window.FLAdminUI.mount(panel, { call: (path, method, body) => fl.adminCall(path, method, body), preview: p => previewPlay(p) });
   }
 
   // ---------- render ----------

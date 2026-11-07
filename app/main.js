@@ -20,7 +20,7 @@ const Schema = require('./renderer/schema.js');
 const DEFAULTS = { lang: 'he', name: '', photo: '', camId: '', micId: '', outId: '', level: 0.4, setupDone: false,
   presets: [], slots: { 7: '', 8: '' }, nick: '', token: '' };
 // never settable from a window: the phone code, the admin key, the store address
-const PRIVATE = ['token', 'adminKey', 'storeUrl'];
+const PRIVATE = ['token', 'adminKey', 'storeUrl', 'inst'];
 const STORE_URL_DEFAULT = 'https://fake-lag-store.pages.dev';
 let S;
 const storeUrl = () => (S.storeUrl || STORE_URL_DEFAULT).replace(/\/$/, '');
@@ -45,6 +45,8 @@ function cleanPresets(list) {
 function loadSettings() {
   try { S = { ...DEFAULTS, ...JSON.parse(fs.readFileSync(settingsFile(), 'utf8')) }; } catch { S = { ...DEFAULTS }; }
   if (!S.token) { S.token = crypto.randomBytes(12).toString('base64url'); saveSettings(); }
+  // a random id for this install, sent only when sharing to the store, so the admin can block a spammer
+  if (!S.inst) { S.inst = crypto.randomUUID(); saveSettings(); }
 }
 function saveSettings() { fs.mkdirSync(path.dirname(settingsFile()), { recursive: true }); fs.writeFileSync(settingsFile(), JSON.stringify(S, null, 1)); }
 
@@ -142,7 +144,7 @@ async function storeFetch(pathname, { method = 'GET', body, admin } = {}) {
 // anything that comes back from the server is checked again before a window sees it
 const cleanItems = items => (Array.isArray(items) ? items : []).slice(0, 200).map(it => {
   const v = Schema.validate(it && it.data); if (!v.ok) return null;
-  return { id: String(it.id).slice(0, 40), likes: Math.max(0, it.likes | 0), status: String(it.status || ''), created: it.created | 0, data: v.value };
+  return { id: String(it.id).slice(0, 40), likes: Math.max(0, it.likes | 0), status: String(it.status || ''), featured: !!it.featured, created: it.created | 0, data: v.value };
 }).filter(Boolean);
 ipcMain.handle('store:list', async (e, { kind, sort } = {}) => {
   const r = await storeFetch(`/api/items?kind=${kind === 'lag' ? 'lag' : 'effect'}&sort=${sort === 'top' ? 'top' : 'new'}`);
@@ -150,17 +152,43 @@ ipcMain.handle('store:list', async (e, { kind, sort } = {}) => {
 });
 ipcMain.handle('store:submit', async (e, item) => {
   const v = Schema.validate(item); if (!v.ok) return { ok: false, error: v.error };
-  return storeFetch('/api/submit', { method: 'POST', body: v.value });
+  return storeFetch('/api/submit', { method: 'POST', body: { ...v.value, inst: S.inst } });
 });
-ipcMain.handle('store:like', (e, id) => storeFetch(`/api/like/${encodeURIComponent(String(id).slice(0, 40))}`, { method: 'POST' }));
-ipcMain.handle('admin:pending', async () => {
-  const r = await storeFetch('/api/admin/pending', { admin: true });
-  return r.ok ? { ok: true, items: cleanItems(r.items) } : r;
+const storeId = id => encodeURIComponent(String(id).slice(0, 40));
+ipcMain.handle('store:like', (e, id) => storeFetch(`/api/like/${storeId(id)}`, { method: 'POST' }));
+ipcMain.handle('store:report', (e, id) => storeFetch(`/api/report/${storeId(id)}`, { method: 'POST' }));
+
+// the admin panel talks to /api/admin/* only, and only through here: the key never reaches a window
+const ADMIN_PATH = /^\/api\/admin\/[a-zA-Z0-9-]+(\/[a-zA-Z]+)?(\?[a-zA-Z0-9=&%._-]*)?$/;
+ipcMain.handle('admin:call', async (e, { path: p, method, body } = {}) => {
+  if (!alive(ctl) || e.sender !== ctl.webContents) return { status: 403, error: 'forbidden' };
+  if (typeof p !== 'string' || p.length > 300 || !ADMIN_PATH.test(p)) return { status: 400, error: 'bad path' };
+  if (!['GET', 'POST'].includes(method)) return { status: 400, error: 'bad method' };
+  if (body !== undefined && JSON.stringify(body).length > 10000) return { status: 413, error: 'too big' };
+  const base = storeUrl();
+  if (!base) return { status: 0, error: 'offline' };
+  if (!S.adminKey) return { status: 401, error: 'not admin' };
+  const headers = { authorization: 'Bearer ' + S.adminKey };
+  if (body !== undefined) headers['content-type'] = 'application/json';
+  try {
+    const r = await fetch(base + p, { method, headers, body: body !== undefined ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(10000) });
+    const data = await r.json().catch(() => ({}));
+    return { ...(data && typeof data === 'object' ? data : {}), status: r.status };
+  } catch { return { status: 0, error: 'network' }; }
 });
-ipcMain.handle('admin:act', (e, { id, action } = {}) => {
-  if (!['approve', 'reject', 'delete'].includes(action)) return { ok: false, error: 'bad action' };
-  return storeFetch(`/api/admin/${encodeURIComponent(String(id).slice(0, 40))}/${action}`, { method: 'POST', admin: true });
-});
+
+// the admin's announcement and whether sharing is open, checked now and then
+let announce = { announce: null, submitOpen: true };
+async function checkAnnounce() {
+  const r = await storeFetch('/api/announce');
+  if (!r.ok) return;
+  const a = r.announce && typeof r.announce === 'object' ? r.announce : null;
+  const clip = (x, n) => String(x || '').slice(0, n);
+  announce = { submitOpen: r.submitOpen !== false,
+    announce: a ? { id: clip(a.id, 20), he: clip(a.he, 200), en: clip(a.en, 200), level: a.level === 'warn' ? 'warn' : 'info' } : null };
+  if (alive(ctl)) ctl.webContents.send('announce', announce);
+}
+ipcMain.handle('announce:get', () => announce);
 
 // ---------- the 7 / 8 slots: a saved lag on a shortcut or the phone ----------
 function playSlot(k) {
@@ -380,6 +408,27 @@ async function selfTest() {
       log.push({ store: { submitted: !!sub.id, inPending, approved: appr.ok, visibleInStore: visible, removed: removed.ok, adminWithoutKey: noKey.error, settingsLeakKey: JSON.stringify(publicSettings()).includes(S.adminKey) } });
       ctl.webContents.send('selftestTab', 'admin'); await wait(1500);
       fs.writeFileSync(path.join(out, 'ctl-admin.png'), (await ctl.webContents.capturePage()).toPNG());
+      // every admin section opens without an error, through the same IPC the panel uses
+      const sections = await ctl.webContents.executeJavaScript(`(async () => {
+        const out = {};
+        for (const b of [...document.querySelectorAll('#adminRoot .fla-tabs button')]) {
+          b.click(); await new Promise(r => setTimeout(r, 1500));
+          const body = document.querySelector('#adminRoot .fla-body');
+          out[b.textContent] = { warn: [...body.querySelectorAll('.warn')].map(x => x.textContent).join(' | '), len: body.innerText.length };
+        }
+        document.querySelector('#adminRoot .fla-tabs button').click();
+        return out;
+      })()`);
+      const badPath = await ctl.webContents.executeJavaScript(`fl.adminCall('/api/items?kind=effect', 'GET').then(r => r.status)`);
+      // an announcement reaches the app and shows on top
+      await storeFetch('/api/admin/config', { method: 'POST', admin: true, body: { announce: { he: 'בדיקת הודעה', en: 'test notice', level: 'warn' } } });
+      await checkAnnounce(); await wait(300);
+      const banner = await ctl.webContents.executeJavaScript(`(() => { const b = document.getElementById('announce'); return b.hidden ? '' : b.textContent; })()`);
+      fs.writeFileSync(path.join(out, 'ctl-announce.png'), (await ctl.webContents.capturePage()).toPNG());
+      await storeFetch('/api/admin/config', { method: 'POST', admin: true, body: { announce: null } });
+      await checkAnnounce(); await wait(300);
+      const bannerGone = await ctl.webContents.executeJavaScript(`document.getElementById('announce').hidden`);
+      log.push({ admin: { sections, nonAdminPathRefused: badPath === 400, banner, bannerGone } });
       ctl.webContents.send('selftestTab', 'lags');
       await ctl.webContents.executeJavaScript(`(() => { const b = [...document.querySelectorAll('#lagsRoot button')].find(x => x.textContent === 'חנות'); b && b.click(); })()`); await wait(1800);
       fs.writeFileSync(path.join(out, 'ctl-store.png'), (await ctl.webContents.capturePage()).toPNG());
@@ -413,6 +462,7 @@ app.whenReady().then(() => {
   createWindows();
   registerShortcuts();
   startServer(SELFTEST ? '127.0.0.1' : '0.0.0.0');   // self-test stays local: no firewall prompt
+  if (!SELFTEST || process.env.FL_TEST_STORE) { checkAnnounce(); setInterval(checkAnnounce, 15 * 60 * 1000); }
   if (SELFTEST) selfTest();
 });
 app.on('will-quit', () => globalShortcut.unregisterAll());

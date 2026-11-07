@@ -88,6 +88,12 @@ nav button{white-space:nowrap}
 .seg.big{display:flex}.seg.big button{flex:1;padding:9px}
 .lcard{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:11px 12px;display:flex;flex-direction:column;gap:8px}
 .lcard.on{border-color:var(--accent)}
+.lcard.feat{border-color:#d9b44a}
+.badge.gold{color:#f2cf6b;border-color:#6b5a26}
+#announce{display:flex;gap:8px;align-items:flex-start;margin:8px 16px 0;padding:9px 12px;border-radius:10px;background:#16243a;border:1px solid #2c4a72;font-size:13.5px}
+#announce.warn{background:#3a2a10;border-color:#8a6420}
+#announce span{flex:1;white-space:pre-wrap}
+#announce button{background:none;border:0;color:var(--mute);cursor:pointer;font-size:16px;line-height:1;padding:0 2px}
 .lhead{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .lhead b{font-size:15px}
 .lhead small{color:var(--mute);font-size:12px}
@@ -126,3 +132,4 @@ h4{margin:6px 0 4px;font-size:13px;color:var(--mute)}
 .dlg::backdrop{background:#000a}
 .dlg h3{margin:0 0 6px}
 footer{display:flex;justify-content:space-between;padding:12px 16px;border-top:1px solid var(--line);background:var(--bg);position:sticky;bottom:0}
+#adminRoot .pv{display:block;height:min(32vh,240px);width:auto;max-width:100%;margin-inline:auto}
