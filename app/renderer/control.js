@@ -203,3 +203,29 @@ $('#copyObs').onclick = () => { navigator.clipboard.writeText($('#obsUrl').textC
   window.fl.getAnnounce().then(a => { cur = a; show(); });
   window.fl.onSettings(() => show());
 })();
+
+// ---------- "worked? send it to a friend": after the 3rd lag, then at most once a week ----------
+// Nothing is sent by the app: the button only opens WhatsApp with a ready message, and only when clicked.
+(function () {
+  const box = $('#share'), WEEK = 7 * 864e5, PAGE = 'https://fake-lag-app.github.io/fake-lag/';
+  let last = 'live';
+  function texts() {
+    $('#shareQ').textContent = t('share_q'); $('#shareGo').textContent = t('share_btn'); $('#shareNever').textContent = t('share_never');
+    $('#shareGo').href = 'https://wa.me/?text=' + encodeURIComponent(t('share_msg') + ' ' + PAGE);
+  }
+  function show() { texts(); box.hidden = false; }
+  const hide = () => { box.hidden = true; };
+  window.fl.onState(s => {
+    const was = last; last = s.mode;
+    // a lag just ended (back to normal)
+    if (was === 'live' || s.mode !== 'live' || !S.setupDone || S.shareOff) return;
+    const n = (S.shareLags || 0) + 1;
+    if (n >= 3 && Date.now() - (S.shareAt || 0) > WEEK) { save({ shareLags: n, shareAt: Date.now() }); show(); }
+    else save({ shareLags: n });
+  });
+  window.fl.onSettings(() => { if (!box.hidden) texts(); });
+  $('#shareGo').addEventListener('click', () => setTimeout(hide, 300));
+  $('#shareX').onclick = hide;
+  $('#shareNever').onclick = () => { save({ shareOff: true }); hide(); };
+  window.FLShare = { show, hide };
+})();

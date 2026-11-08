@@ -7,6 +7,8 @@ const Deps = require('./deps.js');
 
 const SELFTEST = process.argv.includes('--selftest');
 const PORT = 5174;
+// self-test never touches the real camera or mic: Chromium hands out its own fake devices instead
+if (SELFTEST) { app.commandLine.appendSwitch('use-fake-device-for-media-stream'); app.commandLine.appendSwitch('use-fake-ui-for-media-stream'); }
 
 // The camera window sits behind Zoom all lesson. By default Chromium stops painting a covered window,
 // which OBS would see as a frozen picture, so keep it rendering.
@@ -20,7 +22,8 @@ const settingsFile = () => path.join(app.getPath('userData'), 'settings.json');
 const Schema = require('./renderer/schema.js');
 // presets: the user's own lags and effects · slots: what Ctrl+Alt+Shift+7 / 8 play
 const DEFAULTS = { lang: 'he', name: '', photo: '', camId: '', micId: '', outId: '', level: 0.4, setupDone: false,
-  presets: [], slots: { 7: '', 8: '' }, nick: '', token: '', obsAuto: true, obsReady: false, chatUsed: false, zoomDone: false, depsAuto: false, announceOff: false };
+  presets: [], slots: { 7: '', 8: '' }, nick: '', token: '', obsAuto: true, obsReady: false, chatUsed: false, zoomDone: false, depsAuto: false, announceOff: false,
+  shareLags: 0, shareAt: 0, shareOff: false };   // the "send it to a friend" note: how many lags so far, when it was last shown
 // never settable from a window: the phone code, the admin key, the store address
 const PRIVATE = ['token', 'adminKey', 'storeUrl', 'inst', 'obsPass'];
 const STORE_URL_DEFAULT = 'https://fake-lag-store.pages.dev';
@@ -403,6 +406,14 @@ async function selfTest() {
     log.push({ obsStream: { camVisible: cam.isVisible(), renderFpsWhileHidden: Math.round((f1 - f0) / 4.5), streamFps: Math.round(frames / 3), mb: +(bytes.length / 1e6).toFixed(1), spoofedHostStatus: spoof, obsPageStatus: (await fetch(`http://127.0.0.1:${PORT}/obs`)).status } });
     sendCmd({ t: 'mode', mode: 'live' }); cam.show(); await wait(500);
   } catch (e) { log.push({ obsStreamError: String(e) }); }
+  // three lags ended above, so the "send it to a friend" note is up now (it never sends anything by itself)
+  try {
+    ctl.webContents.send('selftestTab', 'remote'); await wait(600);
+    const share = await ctl.webContents.executeJavaScript(`({ shown: !document.getElementById('share').hidden, text: document.getElementById('shareQ').textContent, link: document.getElementById('shareGo').href })`);
+    fs.writeFileSync(path.join(out, 'ctl-share.png'), (await ctl.webContents.capturePage()).toPNG());
+    log.push({ share: { ...share, lags: S.shareLags, shownAt: S.shareAt } });
+    await ctl.webContents.executeJavaScript('window.FLShare.hide()');
+  } catch (e) { log.push({ shareError: String(e) }); }
   for (const tab of ['remote', 'settings', 'help', 'chat', 'lags']) {
     ctl.webContents.send('selftestTab', tab); await wait(tab === 'help' ? 2500 : 900);
     fs.writeFileSync(path.join(out, `ctl-${tab}.png`), (await ctl.webContents.capturePage()).toPNG());
@@ -530,6 +541,7 @@ app.whenReady().then(() => {
   // the self-test never opens the real camera: it draws a test pattern instead
   if (SELFTEST) {
     S.setupDone = true; S.name = 'Yonatan'; S.fakeCam = true;
+    S.shareLags = 0; S.shareAt = 0; S.shareOff = false;   // the share note starts fresh every run
     // optional: run the store flow against a local test server
     if (process.env.FL_TEST_STORE) { S.storeUrl = process.env.FL_TEST_STORE; S.adminKey = process.env.FL_TEST_ADMIN || ''; }
     else { delete S.storeUrl; delete S.adminKey; }   // a test server from an earlier run is not remembered

@@ -16,6 +16,14 @@
 <!-- the admin's announcement to everyone (text only) -->
 <div id="announce" hidden><span></span><button aria-label="close">✕</button></div>
 
+<!-- "worked? send it to a friend": shown now and then after a lag; opens WhatsApp only when clicked -->
+<div id="share" hidden>
+  <span id="shareQ"></span>
+  <a id="shareGo" target="_blank" rel="noopener"></a>
+  <button id="shareNever" class="lnk"></button>
+  <button id="shareX" aria-label="close">✕</button>
+</div>
+
 <!-- first-run wizard bar -->
 <div id="wiz" hidden>
   <div class="wiz-step"><span data-i18n="w_step"></span> <b id="wizN"></b> <span data-i18n="w_of"></span> 4</div>

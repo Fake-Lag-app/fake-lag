@@ -93,6 +93,12 @@ nav button{white-space:nowrap}
 #announce{display:flex;gap:8px;align-items:flex-start;margin:8px 16px 0;padding:9px 12px;border-radius:10px;background:#16243a;border:1px solid #2c4a72;font-size:13.5px}
 #announce.warn{background:#3a2a10;border-color:#8a6420}
 #announce span{flex:1;white-space:pre-wrap}
+#share{display:flex;gap:10px;align-items:center;margin:8px 16px 0;padding:9px 12px;border-radius:10px;background:#122a1d;border:1px solid #2a6a45;font-size:13.5px}
+#share span{flex:1}
+#share a{background:#25d366;color:#08240f;font-weight:700;text-decoration:none;padding:6px 12px;border-radius:8px;white-space:nowrap}
+#share a:hover{filter:brightness(1.07)}
+#share .lnk{background:none;border:0;color:var(--mute);cursor:pointer;font:inherit;font-size:12px;text-decoration:underline;padding:0;white-space:nowrap}
+#share #shareX{background:none;border:0;color:var(--mute);cursor:pointer;font-size:16px;line-height:1;padding:0 2px}
 #announce button{background:none;border:0;color:var(--mute);cursor:pointer;font-size:16px;line-height:1;padding:0 2px}
 .lhead{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .lhead b{font-size:15px}
