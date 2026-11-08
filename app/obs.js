@@ -176,6 +176,8 @@ function createObs({ getPass, url, log = () => {} }) {
   function launch(exe) {
     child = spawn(exe, ['--minimize-to-tray', '--disable-shutdown-check', '--disable-missing-files-check'], { cwd: path.dirname(exe), detached: true, stdio: 'ignore', windowsHide: true });
     child.on('exit', () => { child = null; conn = null; last.connected = false; last.virtualCam = false; });
+    // e.g. an antivirus blocks obs64.exe: without this the whole app crashes
+    child.on('error', e => { log('obs launch ' + e.message); last.err = 'launch'; child = null; });
     child.unref();
   }
 
@@ -253,7 +255,11 @@ function createObs({ getPass, url, log = () => {} }) {
     else { try { if (conn) conn.close(); } catch {} conn = null; }
   }
 
-  return { status, start, install, shutdown, closeObs };
+  // one start at a time: a click on "connect" while the app is already starting OBS waits for that start
+  // instead of opening OBS a second time
+  let starting = null;
+  const startOnce = opts => starting || (starting = start(opts).finally(() => { starting = null; }));
+  return { status, start: startOnce, install, shutdown, closeObs };
 }
 
 module.exports = { createObs, findExe };

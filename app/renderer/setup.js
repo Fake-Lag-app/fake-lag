@@ -178,7 +178,9 @@
     if (step === dlStep) return { icon: '↓', cls: 'wait', text: T.dl.replace('%s', pct) };
     if (step === 'install') {
       if (s.startsWith(key + ':running')) return { icon: '…', cls: 'wait', text: T.inst };
-      if (s.startsWith(key + ':exit') || s === 'done' || (key === 'obs' && s.startsWith('cable:'))) return done;
+      const ex = new RegExp('^' + key + ':exit:(-?\\d+)$').exec(s);
+      if (ex && !['0', '3010', '1641'].includes(ex[1])) return { icon: '✗', cls: 'bad', text: T.fail };
+      if (ex || s === 'done' || (key === 'obs' && s.startsWith('cable:'))) return done;
       return { icon: '·', cls: 'wait', text: T.ready };
     }
     if (order.indexOf(step) > order.indexOf(dlStep)) return { icon: '·', cls: 'wait', text: T.ready };

@@ -105,6 +105,10 @@ async function installAll({ obs = true, cable = true, dry = false, onProgress = 
     log('deps status ' + lines.join(' | '));
     for (const k of ['obs', 'cable']) { const l = lines.filter(x => x.startsWith(k + ':')).pop(); if (l) result[k] = l.slice(k.length + 1); }
     if (lines.some(x => x.startsWith('error:') || x.endsWith(':signature'))) { result.error = lines.some(x => x.endsWith(':signature')) ? 'signature' : 'install'; return result; }
+    // an installer that ran but returned an error code did not install (0 = ok, 3010/1641 = ok but wants a restart)
+    const failed = k => { const m = /^exit:(-?\d+)$/.exec(result[k]); return m && !['0', '3010', '1641'].includes(m[1]); };
+    const bad = ['obs', 'cable'].filter(failed);
+    if (bad.length) { result.error = 'install'; result.failed = bad; return result; }
     result.ok = lines.includes('done');
     return result;
   } catch (e) {

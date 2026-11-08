@@ -9,7 +9,7 @@ import Schema from '../../app/renderer/schema.js';
 import { askAI, cleanDiag, cleanHistory } from './help.js';
 
 const LIMITS = { submitsPerDay: 5, likesPerItemPerDay: 1, adminFailsPerDay: 20, maxPending: 500, bodyBytes: 10000,
-  chatPerDay: 20, aiPerDay: 40, chatText: 1000, maxOpenThreads: 2000 };
+  chatPerDay: 20, aiPerDay: 40, aiAllPerDay: 3000, submitsAllPerDay: 150, chatText: 1000, maxOpenThreads: 2000 };
 const THREAD = /^[0-9a-f]{32}$/;
 const ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const day = () => Math.floor(Date.now() / 86400000);
@@ -24,9 +24,21 @@ async function sha256(text) {
 }
 const hex = buf => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
 
+// the address that counts for limits. IPv6 users usually get a whole /64 block and can switch inside it
+// for free, so the block counts as one address.
+function ipOf(request) {
+  const ip = request.headers.get('cf-connecting-ip') || 'local';
+  if (!ip.includes(':')) return ip;
+  const [head, tail = ''] = ip.toLowerCase().split('::');
+  const parts = head ? head.split(':') : [];
+  const rest = tail ? tail.split(':') : [];
+  while (parts.length + rest.length < 8) parts.push('0');
+  return [...parts, ...rest].slice(0, 4).map(x => x.replace(/^0+(?=.)/, '')).join(':') + '::/64';
+}
+
 // who is asking, without storing who they are: a salted hash that changes every day
 async function visitor(request, env) {
-  const ip = request.headers.get('cf-connecting-ip') || 'local';
+  const ip = ipOf(request);
   return hex(await sha256(`${env.HASH_SALT || 'dev-salt'}|${day()}|${ip}`)).slice(0, 32);
 }
 
@@ -169,7 +181,9 @@ async function api(request, env, url) {
     if (hasBanned(v.value, c.banned)) return fail('word', 400);
     const who = await visitor(request, env);
     if (!(await underLimit(env, `sub:${who}`, c.submitsPerDay))) return fail('rate', 429);
-    const ipk = await stableKey(env, 'ip', request.headers.get('cf-connecting-ip') || 'local');
+    // a cap for everybody together, so someone switching addresses can't fill the queue in one day
+    if (!(await underLimit(env, 'sub:all', LIMITS.submitsAllPerDay))) return fail('busy', 503);
+    const ipk = await stableKey(env, 'ip', ipOf(request));
     const sender = inst ? await stableKey(env, 'inst', inst) : null;
     const blocked = await env.DB.prepare(`SELECT 1 FROM blocks WHERE k = ?1 OR k = ?2 LIMIT 1`).bind(ipk, sender || ipk).first();
     // a blocked sender is told it worked, so they have no reason to try another way
@@ -215,6 +229,7 @@ async function api(request, env, url) {
     if (!env.AI) return fail('ai offline', 503);
     const who = await visitor(request, env);
     if (!(await underLimit(env, `ai:${who}`, LIMITS.aiPerDay))) return fail('rate', 429);
+    if (!(await underLimit(env, 'ai:all', LIMITS.aiAllPerDay))) return fail('busy', 503);
     try {
       const out = await askAI(env, { messages, diag: cleanDiag(b.diag), lang: b.lang === 'en' ? 'en' : 'he' });
       return json(out);
@@ -242,7 +257,7 @@ async function api(request, env, url) {
     if (!text) return fail('empty', 400);
     const who = await visitor(request, env);
     if (!(await underLimit(env, `chat:${who}`, LIMITS.chatPerDay))) return fail('rate', 429);
-    const ipk = await stableKey(env, 'ip', request.headers.get('cf-connecting-ip') || 'local');
+    const ipk = await stableKey(env, 'ip', ipOf(request));
     const blocked = await env.DB.prepare(`SELECT 1 FROM blocks WHERE k = ?1 OR k = ?2 LIMIT 1`).bind(ipk, k).first();
     if (blocked) return json({ ok: true });     // looks sent, goes nowhere
     const exists = await env.DB.prepare(`SELECT 1 FROM threads WHERE k = ?1`).bind(k).first();
