@@ -21,7 +21,15 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: app/package-lock.json
-      - run: npm ci
+      # GitHub's download servers sometimes answer 504 for a few minutes: try again instead of failing the release
+      - name: install
+        shell: bash
+        run: |
+          for i in 1 2 3 4 5; do
+            npm ci && exit 0
+            echo "npm ci failed (try $i), waiting"; sleep $((i * 30))
+          done
+          exit 1
       - run: npm run dist
       - name: publish release
         shell: bash
