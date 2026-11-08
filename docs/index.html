@@ -376,15 +376,21 @@ function render() {
   document.title = d.name + (lang === 'he' ? ' · Fake Lag' : '');
   const ver = REL.ver ? `${d.dlver} ${REL.ver} · ` : '';
   document.getElementById('dlmeta').textContent = ver + d.dlmeta.replace(/~?כ?-?100MB/, REL.mb ? `${REL.mb}MB` : '$&');
-  const vt = VT_SCANNED.includes(REL.sha) ? ` · <a href="https://www.virustotal.com/gui/file/${REL.sha}" rel="noopener">${esc(d.vtLink)} ↗</a>` : '';
+  const vt = VT_SCANNED.has(REL.sha) ? ` · <a href="https://www.virustotal.com/gui/file/${REL.sha}" rel="noopener">${esc(d.vtLink)} ↗</a>` : '';
   document.getElementById('hash').innerHTML = REL.sha ? `${esc(d.hashT)}<br><code>${esc(REL.sha)}</code>${vt}` : '';
 }
 document.getElementById('lang').onclick = () => { lang = lang === 'he' ? 'en' : 'he'; try { localStorage.setItem('fl-lang', lang); } catch {} render(); };
 document.querySelectorAll('a.dl').forEach(a => { a.href = DOWNLOAD_URL; });
 // the latest release (version, size, SHA-256) straight from GitHub; the page works without it
 const REL = {};
-// installers already scanned on VirusTotal (add the SHA-256 of each new release after scanning it)
-const VT_SCANNED = ['35c0c4b5ad651691792fc24f663933aa0af2abc44b6e2b9f11857b07a67ca1e1', 'fdb8f9b188700937ad9ee13fa6b05b722ae441e16c06d7386d5db78fa8bc024d'];   // v0.5.2, v0.5.4
+// installers scanned clean on VirusTotal: vt.json is filled by the release build (.github/vt-scan.mjs);
+// the two below are known even if vt.json can't be read
+const VT_SCANNED = new Set(['35c0c4b5ad651691792fc24f663933aa0af2abc44b6e2b9f11857b07a67ca1e1', 'fdb8f9b188700937ad9ee13fa6b05b722ae441e16c06d7386d5db78fa8bc024d']);   // v0.5.2, v0.5.4
+fetch('vt.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null).then(j => {
+  if (!j || !j.files) return;
+  Object.keys(j.files).forEach(sha => { if (/^[0-9a-f]{64}$/.test(sha)) VT_SCANNED.add(sha); });
+  render();
+}).catch(() => {});
 fetch('https://api.github.com/repos/Fake-Lag-app/fake-lag/releases/latest').then(r => r.ok ? r.json() : null).then(j => {
   const a = j && (j.assets || []).find(x => x.name === 'FakeLag-Setup.exe');
   if (!a) return;

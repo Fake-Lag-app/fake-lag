@@ -1,0 +1,6 @@
+{
+  "files": {
+    "35c0c4b5ad651691792fc24f663933aa0af2abc44b6e2b9f11857b07a67ca1e1": { "tag": "v0.5.2", "engines": 64, "at": "2026-11-07" },
+    "fdb8f9b188700937ad9ee13fa6b05b722ae441e16c06d7386d5db78fa8bc024d": { "tag": "v0.5.4", "engines": null, "at": "2026-11-08" }
+  }
+}
