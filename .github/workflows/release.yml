@@ -30,7 +30,14 @@ jobs:
             echo "npm ci failed (try $i), waiting"; sleep $((i * 30))
           done
           exit 1
-      - run: npm run dist
+      - name: build
+        shell: bash
+        run: |
+          for i in 1 2 3 4; do
+            npm run dist && exit 0
+            echo "build failed (try $i), waiting"; sleep $((i * 45))
+          done
+          exit 1
       - name: publish release
         shell: bash
         env:
