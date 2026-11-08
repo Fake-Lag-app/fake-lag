@@ -241,7 +241,7 @@ const D = {
     download: 'הורדה לווינדוס', source: 'הקוד ב-GitHub', dlmeta: 'Windows 10/11 · כ-100MB · נבנה אוטומטית ובפומבי ב-GitHub', dlver: 'גרסה',
     ssNote: 'ווינדוס עלול להזהיר כי האפליקציה חדשה: לוחצים "מידע נוסף" ואז "הפעל בכל זאת".',
     mobBtn: 'שלחו לעצמכם את הלינק', mobNote: 'האפליקציה היא למחשב Windows. שלחו לעצמכם את הלינק ותורידו מהמחשב.', copied: 'הלינק הועתק ✓',
-    vtLink: 'נסרק ב-VirusTotal: 0 מתוך 64 אנטי-וירוסים מצאו משהו',
+    vtLink: 'נסרק ב-VirusTotal: אף אנטי-וירוס לא מצא בו כלום',
     hashT: 'טביעת האצבע (SHA-256) של קובץ ההתקנה האחרון, ישר מ-GitHub. לבדיקה ב-PowerShell: Get-FileHash FakeLag-Setup.exe',
     sound: 'הדגמה · עם קול 🔊',
     trust: ['קוד פתוח, כל אחד יכול לבדוק', 'המצלמה והקול לא יוצאים מהמחשב', 'בלי חשבון ובלי מייל', 'בלי פרסומות ובלי מעקב', 'הסרה רגילה מהגדרות ווינדוס'],
@@ -301,7 +301,7 @@ const D = {
     download: 'Download for Windows', source: 'Code on GitHub', dlmeta: 'Windows 10/11 · ~100MB · built automatically and publicly on GitHub', dlver: 'Version',
     ssNote: 'Windows may warn because the app is new: click “More info”, then “Run anyway”.',
     mobBtn: 'Send yourself the link', mobNote: 'The app is for Windows PCs. Send yourself the link and download it on your computer.', copied: 'Link copied ✓',
-    vtLink: 'Scanned on VirusTotal: 0 of 64 antivirus engines flagged it',
+    vtLink: 'Scanned on VirusTotal: no antivirus engine flagged it',
     hashT: 'Fingerprint (SHA-256) of the latest installer, straight from GitHub. To check in PowerShell: Get-FileHash FakeLag-Setup.exe',
     sound: 'Demo · sound on 🔊',
     trust: ['Open source, anyone can check', 'Camera and sound never leave your PC', 'No account, no email', 'No ads, no tracking', 'Uninstalls like any app'],
@@ -384,7 +384,7 @@ document.querySelectorAll('a.dl').forEach(a => { a.href = DOWNLOAD_URL; });
 // the latest release (version, size, SHA-256) straight from GitHub; the page works without it
 const REL = {};
 // installers already scanned on VirusTotal (add the SHA-256 of each new release after scanning it)
-const VT_SCANNED = ['35c0c4b5ad651691792fc24f663933aa0af2abc44b6e2b9f11857b07a67ca1e1'];
+const VT_SCANNED = ['35c0c4b5ad651691792fc24f663933aa0af2abc44b6e2b9f11857b07a67ca1e1', 'fdb8f9b188700937ad9ee13fa6b05b722ae441e16c06d7386d5db78fa8bc024d'];   // v0.5.2, v0.5.4
 fetch('https://api.github.com/repos/Fake-Lag-app/fake-lag/releases/latest').then(r => r.ok ? r.json() : null).then(j => {
   const a = j && (j.assets || []).find(x => x.name === 'FakeLag-Setup.exe');
   if (!a) return;
