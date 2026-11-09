@@ -6,6 +6,8 @@ const { createObs } = require('./obs.js');
 const Deps = require('./deps.js');
 
 const SELFTEST = process.argv.includes('--selftest');
+// where the self-test writes: next to the source, or (inside the packed app, which is read-only) in the temp folder
+const ST_DIR = app.isPackaged ? path.join(require('os').tmpdir(), 'fakelag-selftest') : path.join(__dirname, 'selftest');
 const PORT = 5174;
 // self-test never touches the real camera or mic: Chromium hands out its own fake devices instead
 if (SELFTEST) { app.commandLine.appendSwitch('use-fake-device-for-media-stream'); app.commandLine.appendSwitch('use-fake-ui-for-media-stream'); }
@@ -356,7 +358,7 @@ function startServer(host = '0.0.0.0') {
 
 // ---------- self-test: cycle every mode and save screenshots ----------
 async function selfTest() {
-  const out = path.join(__dirname, 'selftest'); fs.mkdirSync(out, { recursive: true });
+  const out = ST_DIR; fs.mkdirSync(out, { recursive: true });
   const wait = ms => new Promise(r => setTimeout(r, ms));
   await wait(3500);
   // screenshots of the remote at its normal size, for the landing page
@@ -530,7 +532,7 @@ async function selfTest() {
 
 // ---------- boot ----------
 // the self-test never touches the real settings
-if (SELFTEST) app.setPath('userData', path.join(__dirname, 'selftest', 'userdata'));
+if (SELFTEST) app.setPath('userData', path.join(ST_DIR, 'userdata'));
 
 // one copy only: a second launch would fight over the camera, the port and the shortcuts
 if (!SELFTEST && !app.requestSingleInstanceLock()) app.quit();
@@ -558,8 +560,8 @@ app.whenReady().then(() => {
   if (!SELFTEST && S.obsAuto && S.obsReady) setTimeout(() => obs.start().then(st => alive(ctl) && ctl.webContents.send('obs', st)), 1500);
   if (SELFTEST) {
     // record why a window goes away during a self-test
-    const dbg = m => { try { fs.appendFileSync(path.join(__dirname, 'selftest', 'debug.txt'), new Date().toISOString() + ' ' + m + '\n'); } catch {} };
-    try { fs.mkdirSync(path.join(__dirname, 'selftest'), { recursive: true }); fs.writeFileSync(path.join(__dirname, 'selftest', 'debug.txt'), ''); } catch {}
+    const dbg = m => { try { fs.appendFileSync(path.join(ST_DIR, 'debug.txt'), new Date().toISOString() + ' ' + m + '\n'); } catch {} };
+    try { fs.mkdirSync(ST_DIR, { recursive: true }); fs.writeFileSync(path.join(ST_DIR, 'debug.txt'), ''); } catch {}
     app.on('render-process-gone', (e, wc, d) => dbg(`renderer gone ${wc.getURL().split('/').pop()} ${d.reason} ${d.exitCode}`));
     app.on('child-process-gone', (e, d) => dbg(`child gone ${d.type} ${d.reason} ${d.exitCode} ${d.name || ''}`));
     for (const [n, w] of [['cam', cam], ['ctl', ctl]]) w && w.on('closed', () => dbg(n + ' closed'));
