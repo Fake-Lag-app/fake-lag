@@ -6,6 +6,8 @@
 
 **ווינדוס מזהיר "Windows protected your PC"?** זה קורה עם כל תוכנה חדשה בלי חתימה דיגיטלית בתשלום. לוחצים "More info" ואז "Run anyway".
 
+**חדש ב-0.5.6:** האפליקציה עברה לגרסה חדשה של Electron (44) שמקבלת תיקוני אבטחה.
+
 **חדש ב-0.5.5:** אחרי כמה לאגים מופיע כפתור קטן לשלוח את האפליקציה לחבר בוואטסאפ. שום דבר לא נשלח לבד, רק אם לוחצים.
 
 **תיקונים ב-0.5.4:** אם ההתקנה של OBS או VB-Cable נכשלת, האפליקציה אומרת את זה במקום להראות ✓. אנטי-וירוס שחוסם את OBS כבר לא מפיל את האפליקציה, ו-OBS לא נפתח פעמיים.
@@ -18,4 +20,4 @@
 
 ---
 
-Download **FakeLag-Setup** below. You also need OBS Studio and VB-Cable (both free); the setup wizard walks you through it.
+Download **FakeLag-Setup** below and run it. The app also needs OBS Studio and VB-Cable (both free): it downloads them from their official sites, checks their signatures and installs them for you, with one Windows permission prompt.
